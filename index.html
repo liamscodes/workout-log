@@ -152,6 +152,20 @@
     cursor: pointer; font-family: inherit;
   }
   .chip.done { color: var(--good); border-color: var(--good); }
+
+  /* ---- rest timer ---- */
+  .rest-row { display: flex; gap: 8px; margin-top: 8px; }
+  .rest-dur {
+    flex: 0 0 auto; border: 1px solid var(--border); background: var(--page);
+    color: var(--ink-2); border-radius: 10px; padding: 11px 14px; font-size: 14px;
+    font-weight: 700; cursor: pointer; font-family: inherit; font-variant-numeric: tabular-nums;
+  }
+  .rest-btn {
+    flex: 1; border: 1px solid var(--border); background: none; color: var(--series);
+    border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit; font-variant-numeric: tabular-nums;
+  }
+  .rest-btn.running { background: var(--series); color: #fff; border-color: var(--series); }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; min-width: 0; }
 
@@ -258,6 +272,10 @@
 
       <label class="f">Sets (weight × reps)</label>
       <div id="setRows"></div>
+      <div class="rest-row">
+        <button type="button" class="rest-dur" id="restDur" title="Tap to change rest length">1:00</button>
+        <button type="button" class="rest-btn" id="restBtn">Start rest timer</button>
+      </div>
       <button class="btn ghost" id="addSet">+ Add set</button>
       <button class="btn ghost" id="copyLast" style="display:none">Copy last workout</button>
 
@@ -521,6 +539,55 @@
     if (lastEntryForName) { resetSetRows(lastEntryForName.sets); toast('Copied last workout'); }
   });
 
+  /* ---- rest timer (logged quietly on the entry as `rests`) ---- */
+  const REST_PRESETS = [30, 60, 90, 120, 180];
+  let restSec = 60, restEndAt = null, restTick = null;
+  let pendingRests = [];
+  const fmtSecs = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.25].forEach(t => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = 880; g.gain.value = 0.15;
+        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.15);
+      });
+    } catch (e) {}
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  }
+
+  function stopRest(finished) {
+    clearInterval(restTick);
+    restTick = null; restEndAt = null;
+    const btn = $('#restBtn');
+    btn.classList.remove('running');
+    btn.textContent = 'Start rest timer';
+    if (finished) { beep(); toast('Rest over — next set!'); }
+  }
+
+  function tickRest() {
+    const left = Math.ceil((restEndAt - Date.now()) / 1000);
+    if (left <= 0) { stopRest(true); return; }
+    $('#restBtn').textContent = fmtSecs(left) + ' — tap to stop';
+  }
+
+  $('#restDur').addEventListener('click', () => {
+    if (restTick) return; // not while running
+    restSec = REST_PRESETS[(REST_PRESETS.indexOf(restSec) + 1) % REST_PRESETS.length];
+    $('#restDur').textContent = fmtSecs(restSec);
+  });
+
+  $('#restBtn').addEventListener('click', () => {
+    if (restTick) { stopRest(false); return; }
+    pendingRests.push({ afterSet: readSets().length, sec: restSec, at: Date.now() });
+    restEndAt = Date.now() + restSec * 1000;
+    $('#restBtn').classList.add('running');
+    restTick = setInterval(tickRest, 250);
+    tickRest();
+  });
+
   $('#saveStrength').addEventListener('click', () => {
     const name = $('#exName').value.trim();
     const sets = readSets();
@@ -534,7 +601,10 @@
     const nowBest = sets.reduce((m, s) => Math.max(m, e1rm(s.w, s.r)), 0);
     const isPR = prior.length > 0 && nowBest > prevBest;
 
-    db.entries.push({ id: uid(), type: 'strength', date, name, sets, pr: isPR });
+    const entry = { id: uid(), type: 'strength', date, name, sets, pr: isPR };
+    if (pendingRests.length) { entry.rests = pendingRests; pendingRests = []; }
+    if (restTick) stopRest(false);
+    db.entries.push(entry);
     save();
     toast(isPR ? '🎉 Saved — new PR on ' + name + '!' : 'Workout saved');
     resetSetRows();
