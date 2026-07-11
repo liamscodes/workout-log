@@ -70,11 +70,26 @@
     padding: 6px 2px 12px;
   }
   header.bar h1 { font-size: 20px; font-weight: 700; }
+  .bar-right { display: flex; gap: 6px; align-items: center; }
   .unit-toggle {
     font-size: 13px; color: var(--ink-2); background: var(--surface);
     border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
     cursor: pointer; font-weight: 600;
   }
+  .sync-pill {
+    font-size: 12px; font-weight: 600; border-radius: 999px; padding: 6px 10px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+    cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit;
+  }
+  .sync-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .sync-pill.on { color: var(--ink-2); }
+  .sync-pill.on .dot { background: var(--good); }
+  .sync-pill.err .dot { background: var(--danger); }
+  .sync-pill.busy .dot { background: var(--series); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .sync-pill.busy .dot { animation: none; } }
+  .sync-note { font-size: 13px; color: var(--ink-2); line-height: 1.5; margin-top: 8px; }
+  .sync-status-line { font-size: 13px; margin-top: 10px; color: var(--muted); }
 
   /* ---- bottom tab bar ---- */
   nav.tabs {
@@ -198,7 +213,10 @@
 <div id="app">
   <header class="bar">
     <h1>Workout Log</h1>
-    <button class="unit-toggle" id="unitToggle"></button>
+    <div class="bar-right">
+      <button class="sync-pill" id="syncPill"><span class="dot"></span><span id="syncPillText">Local only</span></button>
+      <button class="unit-toggle" id="unitToggle"></button>
+    </div>
   </header>
 
   <!-- ============ LOG ============ -->
@@ -249,6 +267,19 @@
   <!-- ============ HISTORY ============ -->
   <section class="view" id="view-history">
     <div id="historyList"></div>
+
+    <div class="card" id="syncCard">
+      <h2>Sync &amp; backup</h2>
+      <label class="f" for="syncCode">Sync code</label>
+      <input id="syncCode" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="at least 6 characters">
+      <div class="sync-note">Your data is saved to the cloud under this code. Use the
+        <b>same code on any device</b> to see the same workouts. Anyone who knows the
+        code can access the data, so treat it like a password.</div>
+      <button class="btn" id="syncEnable">Turn on sync</button>
+      <button class="btn ghost" id="syncDisable" style="display:none">Turn off sync (keep local data)</button>
+      <div class="sync-status-line" id="syncStatusLine"></div>
+    </div>
+
     <div class="io">
       <button class="btn ghost" id="exportBtn">Export data</button>
       <button class="btn ghost" id="importBtn">Import data</button>
@@ -294,15 +325,22 @@
 
   /* ================= data ================= */
   const KEY = 'workout-log-v1';
+  const SYNC_KEY = 'workout-log-sync-code';
   let db = load();
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) { const d = JSON.parse(raw); if (d && Array.isArray(d.entries)) return d; }
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d && Array.isArray(d.entries)) {
+          if (!Array.isArray(d.deleted)) d.deleted = [];
+          return d;
+        }
+      }
     } catch (e) {}
-    return { unit: 'lb', entries: [] };
+    return { unit: 'lb', entries: [], deleted: [] };
   }
-  function save() { localStorage.setItem(KEY, JSON.stringify(db)); }
+  function save() { localStorage.setItem(KEY, JSON.stringify(db)); scheduleSync(); }
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   const $ = (s) => document.querySelector(s);
@@ -349,8 +387,10 @@
   }
 
   /* ================= tabs ================= */
+  let currentView = 'log';
   document.querySelectorAll('nav.tabs button').forEach(btn => {
     btn.addEventListener('click', () => {
+      currentView = btn.dataset.view;
       document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b === btn));
       document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
       $('#view-' + btn.dataset.view).classList.add('active');
@@ -358,6 +398,12 @@
       if (btn.dataset.view === 'progress') renderProgress();
     });
   });
+  function rerenderCurrent() {
+    if (currentView === 'history') renderHistory();
+    if (currentView === 'progress') renderProgress();
+    renderHint();
+    refreshDatalists();
+  }
 
   /* ================= unit toggle ================= */
   function renderUnit() {
@@ -526,6 +572,7 @@
         const e = db.entries.find(x => x.id === card.dataset.id);
         if (confirm('Delete "' + e.name + '" on ' + fmtDate(e.date) + '?')) {
           db.entries = db.entries.filter(x => x.id !== e.id);
+          db.deleted.push(e.id);
           save(); renderHistory(); refreshDatalists();
           toast('Deleted');
         }
@@ -551,7 +598,7 @@
         const d = JSON.parse(reader.result);
         if (!d || !Array.isArray(d.entries)) throw new Error('bad file');
         if (!confirm('Import ' + d.entries.length + ' entries? This replaces current data.')) return;
-        db = { unit: d.unit === 'kg' ? 'kg' : 'lb', entries: d.entries };
+        db = { unit: d.unit === 'kg' ? 'kg' : 'lb', entries: d.entries, deleted: Array.isArray(d.deleted) ? d.deleted : [] };
         save(); renderUnit(); renderHistory(); refreshDatalists();
         toast('Imported ' + d.entries.length + ' entries');
       } catch (e) { toast('Could not read that file'); }
@@ -793,7 +840,100 @@
     svg.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
   }
 
+  /* ================= sync ================= */
+  // Same-origin when served by Netlify (or netlify dev); the absolute URL lets
+  // copies hosted elsewhere (e.g. GitHub Pages) talk to the same backend.
+  const API_URL = /netlify\.app$|^localhost$|^127\./.test(location.hostname)
+    ? '/api/data'
+    : 'https://__NETLIFY_SITE__/api/data';
+
+  const getSyncCode = () => localStorage.getItem(SYNC_KEY) || '';
+  let syncTimer = null;
+  let syncBusy = false;
+  let syncQueued = false;
+
+  function setPill(state, text) {
+    const pill = $('#syncPill');
+    pill.className = 'sync-pill' + (state ? ' ' + state : '');
+    $('#syncPillText').textContent = text;
+  }
+  function statusLine(msg) { $('#syncStatusLine').textContent = msg; }
+
+  function scheduleSync() {
+    if (!getSyncCode()) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(syncNow, 800);
+  }
+
+  async function syncNow() {
+    const code = getSyncCode();
+    if (!code) { setPill('', 'Local only'); return; }
+    if (syncBusy) { syncQueued = true; return; }
+    syncBusy = true;
+    setPill('busy', 'Syncing…');
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + code },
+        body: JSON.stringify(db),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || ('HTTP ' + res.status));
+      }
+      const merged = await res.json();
+      if (merged && Array.isArray(merged.entries)) {
+        db = { unit: merged.unit === 'kg' ? 'kg' : 'lb', entries: merged.entries, deleted: Array.isArray(merged.deleted) ? merged.deleted : [] };
+        localStorage.setItem(KEY, JSON.stringify(db)); // save() would re-schedule
+        renderUnit();
+        rerenderCurrent();
+      }
+      const t = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      setPill('on', 'Synced');
+      statusLine('Sync is on. Last synced ' + t + ' · ' + db.entries.length + ' entries.');
+    } catch (e) {
+      setPill('err', 'Offline');
+      statusLine('Could not reach the sync server (' + e.message + '). Your data is safe on this device and will sync when back online.');
+    } finally {
+      syncBusy = false;
+      if (syncQueued) { syncQueued = false; syncNow(); }
+    }
+  }
+
+  function renderSyncCard() {
+    const code = getSyncCode();
+    $('#syncCode').value = code;
+    $('#syncEnable').textContent = code ? 'Update sync code' : 'Turn on sync';
+    $('#syncDisable').style.display = code ? '' : 'none';
+    if (!code) { setPill('', 'Local only'); statusLine('Sync is off — data lives only in this browser.'); }
+  }
+
+  $('#syncEnable').addEventListener('click', () => {
+    const code = $('#syncCode').value.trim();
+    if (code.length < 6) { toast('Sync code must be at least 6 characters'); return; }
+    localStorage.setItem(SYNC_KEY, code);
+    renderSyncCard();
+    toast('Sync is on');
+    syncNow();
+  });
+  $('#syncDisable').addEventListener('click', () => {
+    localStorage.removeItem(SYNC_KEY);
+    renderSyncCard();
+    toast('Sync turned off — local data kept');
+  });
+  $('#syncPill').addEventListener('click', () => {
+    document.querySelector('nav.tabs button[data-view="history"]').click();
+    $('#syncCard').scrollIntoView({ block: 'center' });
+    $('#syncCode').focus();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncNow();
+  });
+  window.addEventListener('online', syncNow);
+
   /* ================= init ================= */
+  renderSyncCard();
+  if (getSyncCode()) syncNow();
   renderUnit();
   resetSetRows();
   refreshDatalists();
