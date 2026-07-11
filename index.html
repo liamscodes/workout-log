@@ -845,7 +845,7 @@
   // copies hosted elsewhere (e.g. GitHub Pages) talk to the same backend.
   const API_URL = /netlify\.app$|^localhost$|^127\./.test(location.hostname)
     ? '/api/data'
-    : 'https://__NETLIFY_SITE__/api/data';
+    : 'https://liams-workout-log.netlify.app/api/data';
 
   const getSyncCode = () => localStorage.getItem(SYNC_KEY) || '';
   let syncTimer = null;

@@ -52,7 +52,7 @@ export default async (req) => {
   if (code.length < 6) return json({ error: 'A sync code of at least 6 characters is required.' }, 401);
   const key = createHash('sha256').update(code).digest('hex');
 
-  const store = getStore('workouts');
+  const store = getStore({ name: 'workouts', consistency: 'strong' });
 
   if (req.method === 'GET') {
     const data = await store.get(key, { type: 'json' });
