@@ -136,6 +136,22 @@
   }
   input:focus, select:focus { border-color: var(--series); }
   input[type=number] { font-variant-numeric: tabular-nums; }
+  /* iOS Safari draws its own date control that overflows the styled box;
+     flattening appearance makes it respect width/padding like other inputs */
+  input[type=date] {
+    -webkit-appearance: none; appearance: none;
+    display: block; min-height: 46px; text-align: left;
+  }
+  input[type=date]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+
+  /* ---- quick-start routine chips ---- */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip {
+    border: 1px solid var(--border); background: var(--page); color: var(--ink-2);
+    border-radius: 999px; padding: 8px 12px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .chip.done { color: var(--good); border-color: var(--good); }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; min-width: 0; }
 
@@ -231,6 +247,10 @@
     </div>
 
     <div class="card" id="strengthForm">
+      <label class="f" for="routineSel">Routine (optional)</label>
+      <select id="routineSel"><option value="">Pick a routine for suggestions…</option></select>
+      <div class="chips" id="routineChips"></div>
+
       <label class="f" for="exName">Exercise</label>
       <input id="exName" list="exList" placeholder="e.g. Bench Press" autocomplete="off">
       <datalist id="exList"></datalist>
@@ -250,6 +270,7 @@
       <label class="f" for="cName">Activity</label>
       <input id="cName" list="cList" placeholder="e.g. Run" autocomplete="off">
       <datalist id="cList"></datalist>
+      <div class="chips" id="cardioChips"></div>
 
       <div class="row">
         <div>
@@ -515,6 +536,7 @@
     $('#exName').value = '';
     renderHint();
     refreshDatalists();
+    renderRoutineChips();
   });
 
   /* ================= log: cardio form ================= */
@@ -533,11 +555,57 @@
   });
 
   /* ================= datalists ================= */
+  /* ---- preset exercises & routines (standard PureGym equipment) ---- */
+  const ROUTINES = {
+    'Push day': ['Chest Press Machine', 'Shoulder Press Machine', 'Pec Fly Machine', 'Incline Dumbbell Press', 'Tricep Pushdown (Cable)', 'Lateral Raise (Dumbbell)'],
+    'Pull day': ['Lat Pulldown', 'Seated Cable Row', 'Assisted Pull-up', 'Rear Delt Fly Machine', 'Bicep Curl (Dumbbell)', 'Face Pull (Cable)'],
+    'Leg day': ['Leg Press', 'Leg Extension', 'Seated Leg Curl', 'Smith Machine Squat', 'Hip Abductor Machine', 'Calf Raise (Leg Press)'],
+    'Full body': ['Leg Press', 'Chest Press Machine', 'Lat Pulldown', 'Shoulder Press Machine', 'Seated Cable Row', 'Goblet Squat (Dumbbell)'],
+  };
+  const PRESET_STRENGTH = [...new Set([].concat(...Object.values(ROUTINES)).concat([
+    'Smith Machine Bench Press', 'Dumbbell Bench Press', 'Dumbbell Row',
+    'Romanian Deadlift (Dumbbell)', 'Cable Crunch', 'Hip Thrust (Smith Machine)',
+    'Shrug (Dumbbell)', 'Hammer Curl (Dumbbell)', 'Overhead Tricep Extension (Cable)',
+  ]))].sort();
+  const PRESET_CARDIO = ['Treadmill', 'Cross Trainer', 'Exercise Bike', 'Rowing Machine', 'Stair Climber'];
+
   function refreshDatalists() {
-    const ex = [...new Set(db.entries.filter(e => e.type === 'strength').map(e => e.name))].sort();
+    const seen = new Set();
+    const dedup = (arr) => arr.filter(n => { const k = n.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+    // user's own history first, presets after
+    const ex = dedup([...new Set(db.entries.filter(e => e.type === 'strength').map(e => e.name))].sort().concat(PRESET_STRENGTH));
     $('#exList').innerHTML = ex.map(n => '<option value="' + esc(n) + '">').join('');
-    const ca = [...new Set(db.entries.filter(e => e.type === 'cardio').map(e => e.name))].sort();
+    seen.clear();
+    const ca = dedup([...new Set(db.entries.filter(e => e.type === 'cardio').map(e => e.name))].sort().concat(PRESET_CARDIO));
     $('#cList').innerHTML = ca.map(n => '<option value="' + esc(n) + '">').join('');
+  }
+
+  /* ---- quick-start chips ---- */
+  function renderRoutineChips() {
+    const routine = $('#routineSel').value;
+    const box = $('#routineChips');
+    if (!routine) { box.innerHTML = ''; return; }
+    const doneToday = new Set(db.entries
+      .filter(e => e.type === 'strength' && e.date === ($('#exDate').value || todayISO()))
+      .map(e => e.name.toLowerCase()));
+    box.innerHTML = ROUTINES[routine].map(n =>
+      '<button type="button" class="chip' + (doneToday.has(n.toLowerCase()) ? ' done' : '') + '">' +
+      (doneToday.has(n.toLowerCase()) ? '✓ ' : '') + esc(n) + '</button>').join('');
+    [...box.querySelectorAll('.chip')].forEach((chip, i) => {
+      chip.addEventListener('click', () => {
+        $('#exName').value = ROUTINES[routine][i];
+        renderHint();
+        $('#exName').scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+    });
+  }
+  $('#routineSel').addEventListener('change', renderRoutineChips);
+
+  function renderCardioChips() {
+    $('#cardioChips').innerHTML = PRESET_CARDIO.map(n => '<button type="button" class="chip">' + esc(n) + '</button>').join('');
+    [...document.querySelectorAll('#cardioChips .chip')].forEach((chip, i) => {
+      chip.addEventListener('click', () => { $('#cName').value = PRESET_CARDIO[i]; });
+    });
   }
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
@@ -942,6 +1010,9 @@
   resetSetRows();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   refreshDatalists();
+  $('#routineSel').innerHTML = '<option value="">Pick a routine for suggestions…</option>' +
+    Object.keys(ROUTINES).map(n => '<option>' + n + '</option>').join('');
+  renderCardioChips();
   $('#exDate').value = todayISO();
   $('#cDate').value = todayISO();
 })();
