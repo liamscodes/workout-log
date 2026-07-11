@@ -324,6 +324,11 @@
     </div>
 
     <div class="card">
+      <h2>Gym frequency — days per week</h2>
+      <div class="chartwrap" id="freqChart"></div>
+    </div>
+
+    <div class="card">
       <h2>Cardio — minutes per week</h2>
       <div class="chartwrap" id="cardioChart"></div>
     </div>
@@ -725,6 +730,7 @@
     if (names.includes(prev)) sel.value = prev;
     renderStrengthChart();
     renderCardioChart();
+    renderFrequencyChart();
   }
   $('#progressEx').addEventListener('change', renderStrengthChart);
 
@@ -774,7 +780,27 @@
       }, 0);
       bars.push({ label: (start.getMonth() + 1) + '/' + start.getDate(), value: Math.round(mins) });
     }
-    barChart(wrap, bars, 'min');
+    barChart(wrap, bars, 'min', { ariaLabel: 'Cardio minutes per week' });
+  }
+
+  function renderFrequencyChart() {
+    const wrap = $('#freqChart');
+    if (!db.entries.length) {
+      wrap.innerHTML = '<div class="empty">Log a workout to see how often you train.</div>';
+      return;
+    }
+    const bars = [];
+    const ws = weekStart(new Date());
+    for (let i = 11; i >= 0; i--) {
+      const start = new Date(ws); start.setDate(start.getDate() - 7 * i);
+      const end = new Date(start); end.setDate(end.getDate() + 7);
+      const days = new Set(db.entries.filter(e => {
+        const d = parseISO(e.date);
+        return d >= start && d < end;
+      }).map(e => e.date)).size;
+      bars.push({ label: (start.getMonth() + 1) + '/' + start.getDate(), value: days });
+    }
+    barChart(wrap, bars, 'days', { fixedMax: 8, ariaLabel: 'Gym days per week' });
   }
 
   /* ================= charts (SVG) ================= */
@@ -839,11 +865,12 @@
     })));
   }
 
-  function barChart(wrap, bars, unitLabel) {
+  function barChart(wrap, bars, unitLabel, opts) {
+    opts = opts || {};
     wrap.innerHTML = '';
     const W = 520, H = 200, padL = 36, padR = 10, padT = 12, padB = 24;
-    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Cardio minutes per week' });
-    const max = niceMax(Math.max(...bars.map(b => b.value), 1));
+    const svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': opts.ariaLabel || 'Bar chart' });
+    const max = opts.fixedMax || niceMax(Math.max(...bars.map(b => b.value), 1));
     const iw = (W - padL - padR) / bars.length;
     const bw = Math.min(34, iw - 2); // 2px surface gap between bars
     const y = (v) => padT + (H - padT - padB) * (1 - v / max);
