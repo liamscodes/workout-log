@@ -166,6 +166,66 @@
     cursor: pointer; font-family: inherit; font-variant-numeric: tabular-nums;
   }
   .rest-btn.running { background: var(--series); color: #fff; border-color: var(--series); }
+  .restbar-fix {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 10px);
+    width: min(532px, calc(100% - 28px));
+    background: var(--series); color: #fff; border: 0; border-radius: 14px;
+    padding: 13px 16px; display: flex; justify-content: space-between; align-items: center;
+    font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; z-index: 25;
+    box-shadow: 0 4px 14px rgba(0,0,0,.25); font-variant-numeric: tabular-nums;
+  }
+  .restbar-fix small { font-weight: 600; opacity: .85; font-size: 12px; }
+
+  /* ---- routine progress dots ---- */
+  .dots { display: flex; gap: 4px; margin-top: 10px; }
+  .dots i { flex: 1; height: 4px; border-radius: 2px; background: var(--grid); }
+  .dots i.on { background: var(--series); }
+  .routine-count { font-size: 12px; color: var(--ink-2); font-weight: 600; margin-top: 6px; }
+
+  /* ---- set confirm + steppers ---- */
+  .set-row button.ck {
+    flex: 0 0 44px; height: 44px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--muted); font-size: 17px; cursor: pointer; border-radius: 10px;
+  }
+  .set-row.done button.ck { background: var(--good); border-color: var(--good); color: #fff; }
+  .set-row.done input { border-color: var(--good); color: var(--good); font-weight: 700; }
+  .stepper { display: flex; gap: 6px; margin-top: 8px; }
+  .stepper button {
+    flex: 1; text-align: center; border: 1px solid var(--border); border-radius: 999px;
+    padding: 8px 0; font-size: 12px; font-weight: 700; color: var(--ink-2);
+    background: var(--surface); cursor: pointer; font-family: inherit;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+
+  /* ---- progress: summary, trend rows, heat strip ---- */
+  .summary { font-size: 14px; line-height: 1.55; color: var(--ink-2); }
+  .summary b { color: var(--ink); }
+  .exrow {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    padding: 10px 2px; border: 0; border-top: 1px solid var(--grid); background: none;
+    font: inherit; color: var(--ink); cursor: pointer;
+  }
+  .exrow:first-child { border-top: 0; }
+  .exrow .nm { flex: 1; min-width: 0; }
+  .exrow .nm b { font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .exrow .nm span { font-size: 11px; color: var(--muted); }
+  .exrow svg { flex: 0 0 72px; }
+  .exrow.sel .nm b { color: var(--series); }
+  .delta { font-size: 12px; font-weight: 700; color: var(--good); font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+  .delta.flat { color: var(--muted); }
+  .spark { stroke: var(--series); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .sparkdot { fill: var(--series); }
+  .heat { display: flex; gap: 3px; }
+  .heat i {
+    flex: 1; height: 28px; border-radius: 5px; background: var(--grid); font-style: normal;
+    display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--ink-2);
+  }
+  .heat i.h1 { background: var(--series); opacity: .4; color: #fff; }
+  .heat i.h2 { background: var(--series); opacity: .7; color: #fff; }
+  .heat i.h3 { background: var(--series); color: #fff; }
+  .heatlab { display: flex; gap: 3px; margin-top: 4px; }
+  .heatlab span { flex: 1; text-align: center; font-size: 9px; color: var(--muted); }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; min-width: 0; }
 
@@ -263,6 +323,8 @@
     <div class="card" id="strengthForm">
       <label class="f" for="routineSel">Routine (optional)</label>
       <select id="routineSel"><option value="">Pick a routine for suggestions…</option></select>
+      <div class="dots" id="routineDots" style="display:none"></div>
+      <div class="routine-count" id="routineCount" style="display:none"></div>
       <div class="chips" id="routineChips"></div>
 
       <label class="f" for="exName">Exercise</label>
@@ -270,14 +332,19 @@
       <datalist id="exList"></datalist>
       <div id="lastHint"></div>
 
-      <label class="f">Sets (weight × reps)</label>
+      <label class="f">Sets (weight × reps) — tap ✓ as you finish each</label>
       <div id="setRows"></div>
+      <div class="stepper" id="stepper">
+        <button type="button" data-k="w" data-d="-1">− 2.5 lb</button>
+        <button type="button" data-k="w" data-d="1">+ 2.5 lb</button>
+        <button type="button" data-k="r" data-d="-1">− 1 rep</button>
+        <button type="button" data-k="r" data-d="1">+ 1 rep</button>
+      </div>
       <div class="rest-row">
         <button type="button" class="rest-dur" id="restDur" title="Tap to change rest length">1:00</button>
         <button type="button" class="rest-btn" id="restBtn">Start rest timer</button>
       </div>
       <button class="btn ghost" id="addSet">+ Add set</button>
-      <button class="btn ghost" id="copyLast" style="display:none">Copy last workout</button>
 
       <label class="f" for="exDate">Date</label>
       <input type="date" id="exDate">
@@ -335,15 +402,24 @@
     <div class="tiles" id="tiles"></div>
 
     <div class="card">
-      <h2>Strength progress</h2>
-      <select id="progressEx"></select>
-      <div class="chartwrap" id="strengthChart" style="margin-top:12px"></div>
+      <h2>This week</h2>
+      <p class="summary" id="weekSummary"></p>
+    </div>
+
+    <div class="card">
+      <h2>Strength trends — est. 1RM</h2>
+      <div id="trendList"></div>
+    </div>
+
+    <div class="card" id="exDetailCard" style="display:none">
+      <h2 id="exDetailTitle"></h2>
+      <div class="chartwrap" id="strengthChart"></div>
       <div id="strengthStats"></div>
     </div>
 
     <div class="card">
-      <h2>Gym frequency — days per week</h2>
-      <div class="chartwrap" id="freqChart"></div>
+      <h2>Gym days — last 8 weeks</h2>
+      <div id="freqHeat"></div>
     </div>
 
     <div class="card">
@@ -364,6 +440,10 @@
     <svg viewBox="0 0 24 24"><path d="M4 19h16M6 16l4-5 3 3 5-7"/></svg>Progress
   </button>
 </nav>
+
+<button class="restbar-fix" id="restBarFix" style="display:none">
+  <span id="restBarFixText">Rest</span><small>tap to skip</small>
+</button>
 
 <div class="toast" id="toast"></div>
 
@@ -454,9 +534,12 @@
   }
 
   /* ================= unit toggle ================= */
+  const wStep = () => db.unit === 'kg' ? 1.25 : 2.5;
   function renderUnit() {
     $('#unitToggle').textContent = db.unit === 'kg' ? 'kg' : 'lb';
     $('#distUnit').textContent = db.unit === 'kg' ? '(km)' : '(mi)';
+    document.querySelectorAll('#stepper button[data-k="w"]').forEach(b =>
+      b.textContent = (b.dataset.d === '1' ? '+ ' : '− ') + wStep() + ' ' + db.unit);
   }
   $('#unitToggle').addEventListener('click', () => {
     db.unit = db.unit === 'kg' ? 'lb' : 'kg';
@@ -479,8 +562,17 @@
       '<span class="set-n"></span>' +
       '<input type="number" inputmode="decimal" class="w" placeholder="weight" value="' + (w ?? '') + '">' +
       '<input type="number" inputmode="numeric" class="r" placeholder="reps" value="' + (r ?? '') + '">' +
-      '<button class="del" aria-label="Remove set">✕</button>';
-    div.querySelector('.del').addEventListener('click', () => { div.remove(); renumber(); });
+      '<button class="ck" aria-label="Log this set">✓</button>';
+    div.querySelector('.ck').addEventListener('click', () => {
+      if (!div.classList.contains('done') &&
+          (num(div.querySelector('.w').value) <= 0 || num(div.querySelector('.r').value) <= 0)) {
+        toast('Enter weight and reps first'); return;
+      }
+      div.classList.toggle('done');
+      if (div.classList.contains('done')) startRest();
+    });
+    // editing a confirmed set un-confirms it
+    div.querySelectorAll('input').forEach(i => i.addEventListener('input', () => div.classList.remove('done')));
     return div;
   }
   function renumber() {
@@ -501,9 +593,10 @@
     renumber();
   });
 
-  function readSets() {
+  function readSets(doneOnly) {
     const sets = [];
     document.querySelectorAll('#setRows .set-row').forEach(row => {
+      if (doneOnly && !row.classList.contains('done')) return;
       const w = num(row.querySelector('.w').value);
       const r = num(row.querySelector('.r').value);
       if (w > 0 && r > 0) sets.push({ w, r });
@@ -511,33 +604,59 @@
     return sets;
   }
 
-  /* ---- progressive overload hint ---- */
-  let lastEntryForName = null;
+  // steppers adjust the first unconfirmed set
+  $('#stepper').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const rows = [...document.querySelectorAll('#setRows .set-row')];
+    const row = rows.find(x => !x.classList.contains('done')) || rows[rows.length - 1];
+    if (!row) return;
+    const isW = b.dataset.k === 'w';
+    const input = row.querySelector(isW ? '.w' : '.r');
+    const step = isW ? wStep() : 1;
+    const v = Math.max(0, rnd(num(input.value) + step * Number(b.dataset.d)));
+    input.value = isW ? v : Math.round(v);
+    row.classList.remove('done');
+  });
+
+  /* ---- progressive overload hint + prefilled sets ---- */
+  let lastPrefill = '';
+  // last session's sets, with the overload target applied to the top set
+  function suggestedSets(last) {
+    const sets = last.sets.map(x => ({ w: x.w, r: x.r }));
+    const bs = bestSet(last);
+    const i = last.sets.findIndex(x => x.w === bs.w && x.r === bs.r);
+    if (bs.r >= 8) sets[i] = { w: rnd(bs.w + inc()), r: Math.max(5, bs.r - 2) };
+    else sets[i] = { w: bs.w, r: bs.r + 1 };
+    return sets;
+  }
   function renderHint() {
     const name = $('#exName').value.trim();
     const box = $('#lastHint');
-    lastEntryForName = null;
-    if (!name) { box.innerHTML = ''; $('#copyLast').style.display = 'none'; return; }
+    if (!name) { box.innerHTML = ''; return; }
     const hist = strengthEntries(name);
-    if (!hist.length) { box.innerHTML = ''; $('#copyLast').style.display = 'none'; return; }
+    if (!hist.length) {
+      box.innerHTML = '';
+      if (lastPrefill) { lastPrefill = ''; if (!readSets(true).length) resetSetRows(); }
+      return;
+    }
     const last = hist[hist.length - 1];
-    lastEntryForName = last;
     const bs = bestSet(last);
-    const setsTxt = last.sets.map(s => s.w + '×' + s.r).join(', ');
+    const setsTxt = last.sets.map(x => x.w + '×' + x.r).join(', ');
     // overload suggestion: more reps at same weight until ~8+, then add weight
     let target;
     if (bs.r >= 8) target = rnd(bs.w + inc()) + ' ' + db.unit + ' × ' + Math.max(5, bs.r - 2) + ' reps';
     else target = bs.w + ' ' + db.unit + ' × ' + (bs.r + 1) + ' reps';
     box.innerHTML =
       '<div class="hint">Last time (' + fmtDate(last.date) + '): <b>' + setsTxt + ' ' + db.unit + '</b><br>' +
-      'To progress, aim for <span class="target">' + target + '</span> on your top set.</div>';
-    $('#copyLast').style.display = '';
+      'Sets below are prefilled with <span class="target">' + target + '</span> as the target — tap ✓ as you go.</div>';
+    // prefill once per exercise, never over confirmed sets
+    if (lastPrefill !== name.toLowerCase() && !readSets(true).length) {
+      resetSetRows(suggestedSets(last));
+      lastPrefill = name.toLowerCase();
+    }
   }
   $('#exName').addEventListener('input', renderHint);
   $('#exName').addEventListener('change', renderHint);
-  $('#copyLast').addEventListener('click', () => {
-    if (lastEntryForName) { resetSetRows(lastEntryForName.sets); toast('Copied last workout'); }
-  });
 
   /* ---- rest timer (logged quietly on the entry as `rests`) ---- */
   const REST_PRESETS = [30, 60, 90, 120, 180];
@@ -564,6 +683,7 @@
     const btn = $('#restBtn');
     btn.classList.remove('running');
     btn.textContent = 'Start rest timer';
+    $('#restBarFix').style.display = 'none';
     if (finished) { beep(); toast('Rest over — next set!'); }
   }
 
@@ -571,7 +691,19 @@
     const left = Math.ceil((restEndAt - Date.now()) / 1000);
     if (left <= 0) { stopRest(true); return; }
     $('#restBtn').textContent = fmtSecs(left) + ' — tap to stop';
+    $('#restBarFixText').textContent = 'Rest ' + fmtSecs(left);
   }
+
+  function startRest() {
+    if (restTick) return;
+    pendingRests.push({ afterSet: readSets(true).length || readSets().length, sec: restSec, at: Date.now() });
+    restEndAt = Date.now() + restSec * 1000;
+    $('#restBtn').classList.add('running');
+    $('#restBarFix').style.display = 'flex';
+    restTick = setInterval(tickRest, 250);
+    tickRest();
+  }
+  $('#restBarFix').addEventListener('click', () => stopRest(false));
 
   $('#restDur').addEventListener('click', () => {
     if (restTick) return; // not while running
@@ -581,16 +713,14 @@
 
   $('#restBtn').addEventListener('click', () => {
     if (restTick) { stopRest(false); return; }
-    pendingRests.push({ afterSet: readSets().length, sec: restSec, at: Date.now() });
-    restEndAt = Date.now() + restSec * 1000;
-    $('#restBtn').classList.add('running');
-    restTick = setInterval(tickRest, 250);
-    tickRest();
+    startRest();
   });
 
   $('#saveStrength').addEventListener('click', () => {
     const name = $('#exName').value.trim();
-    const sets = readSets();
+    // if any sets were confirmed with ✓, save exactly those; otherwise all filled rows
+    const confirmed = readSets(true);
+    const sets = confirmed.length ? confirmed : readSets();
     const date = $('#exDate').value || todayISO();
     if (!name) { toast('Enter an exercise name'); return; }
     if (!sets.length) { toast('Add at least one set (weight and reps)'); return; }
@@ -609,6 +739,7 @@
     toast(isPR ? '🎉 Saved — new PR on ' + name + '!' : 'Workout saved');
     resetSetRows();
     $('#exName').value = '';
+    lastPrefill = '';
     renderHint();
     refreshDatalists();
     renderRoutineChips();
@@ -659,13 +790,23 @@
   function renderRoutineChips() {
     const routine = $('#routineSel').value;
     const box = $('#routineChips');
-    if (!routine) { box.innerHTML = ''; return; }
+    const dots = $('#routineDots');
+    const count = $('#routineCount');
+    if (!routine) {
+      box.innerHTML = ''; dots.innerHTML = ''; count.textContent = '';
+      dots.style.display = 'none'; count.style.display = 'none';
+      return;
+    }
     const doneToday = new Set(db.entries
       .filter(e => e.type === 'strength' && e.date === ($('#exDate').value || todayISO()))
       .map(e => e.name.toLowerCase()));
     box.innerHTML = ROUTINES[routine].map(n =>
       '<button type="button" class="chip' + (doneToday.has(n.toLowerCase()) ? ' done' : '') + '">' +
       (doneToday.has(n.toLowerCase()) ? '✓ ' : '') + esc(n) + '</button>').join('');
+    const doneCount = ROUTINES[routine].filter(n => doneToday.has(n.toLowerCase())).length;
+    dots.style.display = 'flex'; count.style.display = '';
+    dots.innerHTML = ROUTINES[routine].map(n => '<i class="' + (doneToday.has(n.toLowerCase()) ? 'on' : '') + '"></i>').join('');
+    count.textContent = doneCount + ' of ' + ROUTINES[routine].length + ' done today';
     [...box.querySelectorAll('.chip')].forEach((chip, i) => {
       chip.addEventListener('click', () => {
         $('#exName').value = ROUTINES[routine][i];
@@ -783,52 +924,156 @@
       cursor.setDate(cursor.getDate() - 7);
     }
 
+    const volIn = (start, end) => db.entries.filter(e => e.type === 'strength').reduce((t, e) => {
+      const d = parseISO(e.date);
+      return d >= start && d < end ? t + volume(e) : t;
+    }, 0);
+    const wEnd = new Date(ws); wEnd.setDate(wEnd.getDate() + 7);
+    const prevWs = new Date(ws); prevWs.setDate(prevWs.getDate() - 7);
+    const cur = volIn(ws, wEnd), prev = volIn(prevWs, ws);
+    const volTxt = prev > 0 ? (cur >= prev ? '+' : '') + Math.round((cur - prev) / prev * 100) + '%' : '—';
+
     $('#tiles').innerHTML =
       '<div class="tile"><div class="v">' + thisWeek + '</div><div class="l">DAYS THIS WEEK</div></div>' +
       '<div class="tile"><div class="v">' + streak + '</div><div class="l">WEEK STREAK</div></div>' +
-      '<div class="tile"><div class="v">' + dayKeys.size + '</div><div class="l">TOTAL DAYS</div></div>';
+      '<div class="tile"><div class="v">' + volTxt + '</div><div class="l">VOL VS LAST WK</div></div>';
   }
 
-  function renderProgress() {
-    renderTiles();
+  let selectedEx = '';
+  let trendsExpanded = false;
 
-    // exercise picker
-    const names = [...new Set(db.entries.filter(e => e.type === 'strength').map(e => e.name))].sort();
-    const sel = $('#progressEx');
-    const prev = sel.value;
-    sel.innerHTML = names.map(n => '<option>' + esc(n) + '</option>').join('');
-    if (names.includes(prev)) sel.value = prev;
-    renderStrengthChart();
-    renderCardioChart();
-    renderFrequencyChart();
-  }
-  $('#progressEx').addEventListener('change', renderStrengthChart);
-
-  function renderStrengthChart() {
-    const name = $('#progressEx').value;
-    const wrap = $('#strengthChart');
-    const stats = $('#strengthStats');
-    if (!name) {
-      wrap.innerHTML = '<div class="empty">Log a strength workout to see progress here.</div>';
-      stats.innerHTML = '';
-      return;
-    }
-    const hist = strengthEntries(name);
-    const pts = hist.map(e => {
+  function exerciseSeries(name) {
+    return strengthEntries(name).map(e => {
       const bs = bestSet(e);
       return { date: e.date, value: rnd(e1rm(bs.w, bs.r)), label: bs.w + '×' + bs.r, vol: Math.round(volume(e)) };
     });
-    lineChart(wrap, pts, 'est. 1RM');
+  }
 
+  function sparkSVG(pts) {
+    const w = 72, h = 26, pad = 4;
+    const vals = pts.map(p => p.value);
+    let lo = Math.min(...vals), hi = Math.max(...vals);
+    if (lo === hi) { lo -= 1; hi += 1; }
+    const x = (i) => pts.length === 1 ? w / 2 : pad + (w - 2 * pad) * i / (pts.length - 1);
+    const y = (v) => pad + (h - 2 * pad) * (1 - (v - lo) / (hi - lo));
+    const line = pts.map((p, i) => x(i).toFixed(1) + ',' + y(p.value).toFixed(1)).join(' ');
+    return '<svg width="72" height="26" viewBox="0 0 72 26" aria-hidden="true">' +
+      '<polyline class="spark" points="' + line + '"/>' +
+      '<circle class="sparkdot" cx="' + x(pts.length - 1).toFixed(1) + '" cy="' + y(pts[pts.length - 1].value).toFixed(1) + '" r="3"/></svg>';
+  }
+
+  function strengthNames() {
+    return [...new Set(db.entries.filter(e => e.type === 'strength').map(e => e.name))];
+  }
+  const isFlat = (pts) => pts.length >= 4 && rnd(pts[pts.length - 1].value - pts[pts.length - 4].value) <= 0;
+
+  function renderWeekSummary() {
+    const box = $('#weekSummary');
+    if (!db.entries.length) {
+      box.textContent = 'Log your first workout to see a weekly summary here.';
+      return;
+    }
+    const ws = weekStart(new Date());
+    const days = new Set(db.entries.filter(e => parseISO(e.date) >= ws).map(e => e.date)).size;
+    const prs = [...new Set(db.entries.filter(e => e.type === 'strength' && e.pr && parseISO(e.date) >= ws).map(e => e.name))];
+    const flat = strengthNames().filter(n => isFlat(exerciseSeries(n)));
+    let html = days
+      ? 'You trained <b>' + days + ' day' + (days > 1 ? 's' : '') + '</b> this week'
+      : 'No sessions yet this week';
+    html += prs.length ? ' and set a PR on <b>' + prs.map(esc).join('</b>, <b>') + '</b>.' : '.';
+    if (flat.length) {
+      html += ' <b>' + esc(flat[0]) + '</b>' + (flat.length > 1 ? ' (and ' + (flat.length - 1) + ' more)' : '') +
+        ' has been flat for 4 sessions — try adding weight or changing rep range.';
+    }
+    box.innerHTML = html;
+  }
+
+  function renderTrendList() {
+    const box = $('#trendList');
+    const names = strengthNames();
+    if (!names.length) {
+      box.innerHTML = '<div class="empty">Log a strength workout to see trends here.</div>';
+      selectedEx = '';
+      return;
+    }
+    const lastDate = {};
+    for (const n of names) { const h = strengthEntries(n); lastDate[n] = h[h.length - 1].date; }
+    names.sort((a, b) => lastDate[a] < lastDate[b] ? 1 : lastDate[a] > lastDate[b] ? -1 : a.localeCompare(b));
+    const ws = weekStart(new Date());
+    const shown = trendsExpanded ? names : names.slice(0, 6);
+    box.innerHTML = shown.map(n => {
+      const pts = exerciseSeries(n).slice(-8);
+      const cur = pts[pts.length - 1].value;
+      const delta = rnd(cur - pts[0].value);
+      const prWeek = strengthEntries(n).some(e => e.pr && parseISO(e.date) >= ws);
+      let sub = cur + ' ' + db.unit;
+      if (prWeek) sub += ' · PR this week';
+      else if (isFlat(pts)) sub += ' · flat 4 sessions';
+      return '<button type="button" class="exrow' + (selectedEx === n ? ' sel' : '') + '" data-ex="' + esc(n) + '">' +
+        '<span class="nm"><b>' + esc(n) + '</b><span>' + sub + '</span></span>' +
+        sparkSVG(pts) +
+        '<span class="delta' + (delta > 0 ? '' : ' flat') + '">' + (delta >= 0 ? '+' : '') + delta + '</span></button>';
+    }).join('') +
+      (names.length > 6
+        ? '<button class="btn ghost" id="trendMore">' + (trendsExpanded ? 'Show fewer' : 'All ' + names.length + ' exercises') + '</button>'
+        : '');
+    box.querySelectorAll('.exrow').forEach(row => row.addEventListener('click', () => {
+      selectedEx = row.dataset.ex === selectedEx ? '' : row.dataset.ex;
+      renderTrendList();
+      renderExDetail();
+      if (selectedEx) $('#exDetailCard').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }));
+    const more = box.querySelector('#trendMore');
+    if (more) more.addEventListener('click', () => { trendsExpanded = !trendsExpanded; renderTrendList(); });
+  }
+
+  function renderExDetail() {
+    const card = $('#exDetailCard');
+    if (!selectedEx || !strengthEntries(selectedEx).length) { card.style.display = 'none'; return; }
+    card.style.display = '';
+    $('#exDetailTitle').textContent = selectedEx;
+    const pts = exerciseSeries(selectedEx);
+    lineChart($('#strengthChart'), pts, 'est. 1RM');
     const first = pts[0], lastP = pts[pts.length - 1];
     const best = pts.reduce((m, p) => p.value > m.value ? p : m, pts[0]);
     const delta = rnd(lastP.value - first.value);
-    stats.innerHTML =
+    $('#strengthStats').innerHTML =
       '<div class="kv"><span class="k">Sessions logged</span><span class="v">' + pts.length + '</span></div>' +
       '<div class="kv"><span class="k">Best est. 1RM</span><span class="v">' + best.value + ' ' + db.unit + ' <span style="color:var(--muted);font-weight:400">(' + fmtShort(best.date) + ')</span></span></div>' +
       '<div class="kv"><span class="k">Latest top set</span><span class="v">' + lastP.label + ' ' + db.unit + '</span></div>' +
       '<div class="kv"><span class="k">Latest session volume</span><span class="v">' + lastP.vol.toLocaleString() + ' ' + db.unit + '</span></div>' +
       '<div class="kv"><span class="k">Change since first session</span><span class="v" style="color:' + (delta >= 0 ? 'var(--good)' : 'var(--danger)') + '">' + (delta >= 0 ? '+' : '') + delta + ' ' + db.unit + '</span></div>';
+  }
+
+  function renderFreqHeat() {
+    const wrap = $('#freqHeat');
+    if (!db.entries.length) {
+      wrap.innerHTML = '<div class="empty">Log a workout to see how often you train.</div>';
+      return;
+    }
+    const ws = weekStart(new Date());
+    let cells = '', labs = '';
+    for (let i = 7; i >= 0; i--) {
+      const start = new Date(ws); start.setDate(start.getDate() - 7 * i);
+      const end = new Date(start); end.setDate(end.getDate() + 7);
+      const days = new Set(db.entries.filter(e => {
+        const d = parseISO(e.date);
+        return d >= start && d < end;
+      }).map(e => e.date)).size;
+      const cls = days === 0 ? '' : days <= 2 ? 'h1' : days <= 4 ? 'h2' : 'h3';
+      cells += '<i class="' + cls + '" aria-label="' + days + ' gym days">' + (days || '') + '</i>';
+      labs += '<span>' + (start.getMonth() + 1) + '/' + start.getDate() + '</span>';
+    }
+    wrap.innerHTML = '<div class="heat">' + cells + '</div><div class="heatlab">' + labs + '</div>';
+  }
+
+  function renderProgress() {
+    renderTiles();
+    renderWeekSummary();
+    renderTrendList();
+    renderExDetail();
+    renderFreqHeat();
+    renderCardioChart();
   }
 
   function renderCardioChart() {
@@ -851,26 +1096,6 @@
       bars.push({ label: (start.getMonth() + 1) + '/' + start.getDate(), value: Math.round(mins) });
     }
     barChart(wrap, bars, 'min', { ariaLabel: 'Cardio minutes per week' });
-  }
-
-  function renderFrequencyChart() {
-    const wrap = $('#freqChart');
-    if (!db.entries.length) {
-      wrap.innerHTML = '<div class="empty">Log a workout to see how often you train.</div>';
-      return;
-    }
-    const bars = [];
-    const ws = weekStart(new Date());
-    for (let i = 11; i >= 0; i--) {
-      const start = new Date(ws); start.setDate(start.getDate() - 7 * i);
-      const end = new Date(start); end.setDate(end.getDate() + 7);
-      const days = new Set(db.entries.filter(e => {
-        const d = parseISO(e.date);
-        return d >= start && d < end;
-      }).map(e => e.date)).size;
-      bars.push({ label: (start.getMonth() + 1) + '/' + start.getDate(), value: days });
-    }
-    barChart(wrap, bars, 'days', { fixedMax: 8, ariaLabel: 'Gym days per week' });
   }
 
   /* ================= charts (SVG) ================= */
