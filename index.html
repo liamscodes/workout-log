@@ -71,7 +71,7 @@
 
   header.bar {
     display: flex; align-items: baseline; justify-content: space-between;
-    padding: 6px 2px 12px;
+    padding: 4px 2px 10px;
   }
   header.bar h1 { font-size: 20px; font-weight: 700; }
   .bar-right { display: flex; gap: 6px; align-items: center; }
@@ -115,12 +115,12 @@
 
   .card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 14px; margin-bottom: 12px;
+    border-radius: 14px; padding: 12px; margin-bottom: 10px;
   }
   .card h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); margin-bottom: 10px; }
 
   /* ---- segmented control ---- */
-  .seg { display: flex; background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 3px; margin-bottom: 14px; }
+  .seg { display: flex; background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 3px; margin-bottom: 10px; }
   .seg button {
     flex: 1; border: 0; background: none; color: var(--ink-2); font: inherit;
     font-weight: 600; font-size: 14px; padding: 9px 0; border-radius: 8px; cursor: pointer;
@@ -128,11 +128,11 @@
   .seg button.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 
   /* ---- forms ---- */
-  label.f { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 10px 0 4px; }
+  label.f { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 8px 0 4px; }
   input, select, textarea {
     width: 100%; font: inherit; font-size: 16px; color: var(--ink);
     background: var(--page); border: 1px solid var(--border); border-radius: 10px;
-    padding: 11px 12px; outline: none;
+    padding: 10px 12px; outline: none;
   }
   input:focus, select:focus { border-color: var(--series); }
   input[type=number] { font-variant-numeric: tabular-nums; }
@@ -154,7 +154,7 @@
   .chip.done { color: var(--good); border-color: var(--good); }
 
   /* ---- rest timer ---- */
-  .rest-row { display: flex; gap: 8px; margin-top: 8px; }
+  .rest-row { display: flex; gap: 8px; margin-top: 6px; }
   .rest-dur {
     flex: 0 0 auto; border: 1px solid var(--border); background: var(--page);
     color: var(--ink-2); border-radius: 10px; padding: 11px 14px; font-size: 14px;
@@ -190,7 +190,7 @@
   }
   .set-row.done button.ck { background: var(--good); border-color: var(--good); color: #fff; }
   .set-row.done input { border-color: var(--good); color: var(--good); font-weight: 700; }
-  .stepper { display: flex; gap: 6px; margin-top: 8px; }
+  .stepper { display: flex; gap: 6px; margin-top: 6px; }
   .stepper button {
     flex: 1; text-align: center; border: 1px solid var(--border); border-radius: 999px;
     padding: 8px 0; font-size: 12px; font-weight: 700; color: var(--ink-2);
@@ -229,7 +229,7 @@
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; min-width: 0; }
 
-  .set-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .set-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
   .set-row .set-n { flex: 0 0 26px; text-align: center; font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
   .set-row button.del {
     flex: 0 0 38px; height: 44px; border: 0; background: none; color: var(--muted);
@@ -237,7 +237,7 @@
   }
   .btn {
     display: block; width: 100%; font: inherit; font-size: 16px; font-weight: 700;
-    padding: 14px; border-radius: 12px; border: 0; cursor: pointer; margin-top: 12px;
+    padding: 13px; border-radius: 12px; border: 0; cursor: pointer; margin-top: 10px;
     background: var(--series); color: #fff;
   }
   .btn.ghost {
@@ -246,11 +246,20 @@
   }
   .btn.small { width: auto; padding: 8px 14px; font-size: 13px; display: inline-block; }
 
+  .label-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .label-row .linkbtn {
+    border: 0; background: none; color: var(--series); font: inherit;
+    font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 2px;
+  }
+  .footer-row { align-items: flex-end; margin-top: 2px; }
+  .footer-row .datecell { flex: 0 0 42%; }
+  .footer-row .btn { margin-top: 0; }
+
   /* ---- last-time / overload hint ---- */
   .hint {
     border: 1px solid var(--border); border-left: 3px solid var(--series);
-    border-radius: 10px; padding: 10px 12px; margin-top: 10px;
-    font-size: 14px; color: var(--ink-2); line-height: 1.45;
+    border-radius: 10px; padding: 8px 12px; margin-top: 8px;
+    font-size: 13px; color: var(--ink-2); line-height: 1.45;
   }
   .hint b { color: var(--ink); }
   .hint .target { color: var(--good); font-weight: 700; }
@@ -321,8 +330,7 @@
     </div>
 
     <div class="card" id="strengthForm">
-      <label class="f" for="routineSel">Routine (optional)</label>
-      <select id="routineSel"><option value="">Pick a routine for suggestions…</option></select>
+      <select id="routineSel" aria-label="Routine (optional)"><option value="">Pick a routine for suggestions…</option></select>
       <div class="dots" id="routineDots" style="display:none"></div>
       <div class="routine-count" id="routineCount" style="display:none"></div>
       <div class="chips" id="routineChips"></div>
@@ -332,7 +340,10 @@
       <datalist id="exList"></datalist>
       <div id="lastHint"></div>
 
-      <label class="f">Sets (weight × reps) — tap ✓ as you finish each</label>
+      <div class="label-row">
+        <label class="f">Sets — tap ✓ as you finish each</label>
+        <button type="button" class="linkbtn" id="addSet">+ Add set</button>
+      </div>
       <div id="setRows"></div>
       <div class="stepper" id="stepper">
         <button type="button" data-k="w" data-d="-1">− 2.5 lb</button>
@@ -344,11 +355,13 @@
         <button type="button" class="rest-dur" id="restDur" title="Tap to change rest length">1:00</button>
         <button type="button" class="rest-btn" id="restBtn">Start rest timer</button>
       </div>
-      <button class="btn ghost" id="addSet">+ Add set</button>
-
-      <label class="f" for="exDate">Date</label>
-      <input type="date" id="exDate">
-      <button class="btn" id="saveStrength">Save workout</button>
+      <div class="row footer-row">
+        <div class="datecell">
+          <label class="f" for="exDate">Date</label>
+          <input type="date" id="exDate">
+        </div>
+        <button class="btn" id="saveStrength">Save workout</button>
+      </div>
     </div>
 
     <div class="card" id="cardioForm" style="display:none">
@@ -368,9 +381,13 @@
         </div>
       </div>
 
-      <label class="f" for="cDate">Date</label>
-      <input type="date" id="cDate">
-      <button class="btn" id="saveCardio">Save cardio</button>
+      <div class="row footer-row">
+        <div class="datecell">
+          <label class="f" for="cDate">Date</label>
+          <input type="date" id="cDate">
+        </div>
+        <button class="btn" id="saveCardio">Save cardio</button>
+      </div>
     </div>
   </section>
 
