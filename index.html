@@ -780,15 +780,20 @@
   /* ================= datalists ================= */
   /* ---- preset exercises & routines (standard PureGym equipment) ---- */
   const ROUTINES = {
-    'Push day': ['Chest Press Machine', 'Shoulder Press Machine', 'Pec Fly Machine', 'Incline Dumbbell Press', 'Tricep Pushdown (Cable)', 'Lateral Raise (Dumbbell)'],
-    'Pull day': ['Lat Pulldown', 'Seated Cable Row', 'Assisted Pull-up', 'Rear Delt Fly Machine', 'Bicep Curl (Dumbbell)', 'Face Pull (Cable)'],
-    'Leg day': ['Leg Press', 'Leg Extension', 'Seated Leg Curl', 'Smith Machine Squat', 'Hip Abductor Machine', 'Calf Raise (Leg Press)'],
-    'Full body': ['Leg Press', 'Chest Press Machine', 'Lat Pulldown', 'Shoulder Press Machine', 'Seated Cable Row', 'Goblet Squat (Dumbbell)'],
+    'Push': ['Chest Press Machine', 'Shoulder Press Machine', 'Assisted Dip Machine (Chest Dips)', 'Cable Lateral Raise', 'Overhead Tricep Extension (Cable)'],
+    'Pull': ['Lat Pulldown', 'Chest-Supported Row Machine', 'Reverse Pec Deck', 'Seated Dumbbell Curl', 'Ab Crunch Machine'],
+    'Legs': ['Leg Press', 'Seated Leg Curl', 'Leg Extension', 'Calf Raise (Leg Press)'],
+    'Shoulders & arms': ['Shoulder Press Machine', 'Cable Lateral Raise', 'Overhead Tricep Extension (Cable)', 'EZ-Bar Curl', 'Reverse Pec Deck'],
+    'Chest, back & abs': ['Assisted Dip Machine (Chest Dips)', 'Chest Press Machine', 'Chest-Supported Row Machine', 'Ab Crunch Machine', 'Decline Bench Sit-Up'],
   };
   const PRESET_STRENGTH = [...new Set([].concat(...Object.values(ROUTINES)).concat([
+    // earlier preset exercises, kept for autocomplete
+    'Pec Fly Machine', 'Incline Dumbbell Press', 'Tricep Pushdown (Cable)', 'Lateral Raise (Dumbbell)',
+    'Seated Cable Row', 'Assisted Pull-up', 'Rear Delt Fly Machine', 'Bicep Curl (Dumbbell)', 'Face Pull (Cable)',
+    'Smith Machine Squat', 'Hip Abductor Machine', 'Goblet Squat (Dumbbell)',
     'Smith Machine Bench Press', 'Dumbbell Bench Press', 'Dumbbell Row',
     'Romanian Deadlift (Dumbbell)', 'Cable Crunch', 'Hip Thrust (Smith Machine)',
-    'Shrug (Dumbbell)', 'Hammer Curl (Dumbbell)', 'Overhead Tricep Extension (Cable)',
+    'Shrug (Dumbbell)', 'Hammer Curl (Dumbbell)',
   ]))].sort();
   const PRESET_CARDIO = ['Treadmill', 'Cross Trainer', 'Exercise Bike', 'Rowing Machine', 'Stair Climber'];
 
