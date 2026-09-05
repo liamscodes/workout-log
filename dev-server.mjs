@@ -17,6 +17,7 @@ const blobs = new BlobsServer({
 await blobs.start();
 process.env.NETLIFY_BLOBS_CONTEXT = Buffer.from(JSON.stringify({
   edgeURL: `http://localhost:${BLOBS_PORT}`,
+  uncachedEdgeURL: `http://localhost:${BLOBS_PORT}`, // required for strong-consistency reads
   token: 'dev-token',
   siteID: 'dev-site',
 })).toString('base64');

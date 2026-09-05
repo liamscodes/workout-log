@@ -10,7 +10,7 @@ const CORS = {
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS },
   });
 
 const MAX_BODY = 2_000_000;      // ~2 MB of workout JSON is years of training
@@ -48,7 +48,13 @@ export default async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
   const auth = req.headers.get('authorization') || '';
-  const code = auth.replace(/^Bearer\s+/i, '').trim();
+  let code = auth.replace(/^Bearer\s+/i, '').trim();
+  // Read-only access with the code in the URL, e.g. /api/data?code=XXXX, so
+  // tools that can only fetch a plain URL (an AI assistant, a browser tab)
+  // can read the latest synced data without an Authorization header.
+  if (!code && req.method === 'GET') {
+    code = (new URL(req.url).searchParams.get('code') || '').trim();
+  }
   if (code.length < 6) return json({ error: 'A sync code of at least 6 characters is required.' }, 401);
   const key = createHash('sha256').update(code).digest('hex');
 
