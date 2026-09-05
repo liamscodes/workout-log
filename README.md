@@ -42,7 +42,7 @@ for years and follows you across devices.
 
 ## Files
 
-- `index.html` — the whole app (also served by GitHub Pages at /workout/)
+- `index.html` — the whole app
 - `netlify/functions/data.mjs` — the sync API (Netlify Function + Blobs)
 - `netlify.toml`, `package.json` — Netlify project config
 - `dev-server.mjs` — local dev harness: serves the app and runs the real
@@ -51,10 +51,10 @@ for years and follows you across devices.
 
 ## Deploying
 
-The Netlify site deploys from a folder laid out as `public/index.html` +
-`netlify/functions/` + `netlify.toml`. The `__NETLIFY_SITE__` placeholder in
-`index.html` must be replaced with the deployed hostname so copies hosted
-elsewhere (like GitHub Pages) can reach the API cross-origin.
+Netlify deploys this repo from `main` (project `liams-workout-log`,
+https://liams-workout-log.netlify.app). `netlify.toml` copies the static files
+into `public/` and deploys `netlify/functions/`. Every push to `main` is a
+production deploy.
 
 ## Notes
 
