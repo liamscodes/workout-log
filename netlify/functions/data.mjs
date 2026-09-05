@@ -16,7 +16,7 @@ const json = (body, status = 200) =>
 const MAX_BODY = 2_000_000;      // ~2 MB of workout JSON is years of training
 const MAX_TOMBSTONES = 5000;
 
-const emptyDb = () => ({ unit: 'lb', entries: [], deleted: [] });
+const emptyDb = () => ({ unit: 'lb', entries: [], deleted: [], bodyweight: null });
 
 function sanitize(db) {
   if (!db || typeof db !== 'object') return emptyDb();
@@ -24,6 +24,8 @@ function sanitize(db) {
     unit: db.unit === 'kg' ? 'kg' : 'lb',
     entries: Array.isArray(db.entries) ? db.entries.filter(e => e && typeof e.id === 'string') : [],
     deleted: Array.isArray(db.deleted) ? db.deleted.filter(d => typeof d === 'string') : [],
+    // optional; the app uses it to score bodyweight and assisted exercises
+    bodyweight: typeof db.bodyweight === 'number' && isFinite(db.bodyweight) && db.bodyweight > 0 ? db.bodyweight : null,
   };
 }
 
@@ -39,6 +41,7 @@ function merge(server, client) {
   );
   return {
     unit: client.unit || server.unit,
+    bodyweight: client.bodyweight ?? server.bodyweight ?? null,
     entries,
     deleted: [...deleted].slice(-MAX_TOMBSTONES),
   };
