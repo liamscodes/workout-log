@@ -44,12 +44,19 @@ has the same shape.
 ```json
 {
   "unit": "lb",
+  "bodyweight": 170,
   "entries": [
     { "id": "…", "type": "strength", "date": "2026-09-01", "name": "Chest Press",
       "sets": [ { "w": 120, "r": 10 }, { "w": 120, "r": 8 } ],
       "pr": false, "rests": [90, 95] },
+    { "id": "…", "type": "strength", "date": "2026-09-01", "name": "Hanging Leg Raise",
+      "mode": "bw", "sets": [ { "w": 0, "r": 12 } ], "pr": false },
+    { "id": "…", "type": "strength", "date": "2026-09-01", "name": "Assisted Pull-up",
+      "mode": "assist", "sets": [ { "w": -60, "r": 8 } ], "pr": false },
     { "id": "…", "type": "cardio", "date": "2026-09-02", "name": "Treadmill",
-      "min": 25, "dist": 2.1 }
+      "min": 25.5, "dist": 2.1, "du": "mi" },
+    { "id": "…", "type": "cardio", "date": "2026-09-02", "name": "Stair Climber",
+      "min": 20, "dist": 1200, "du": "steps" }
   ],
   "deleted": [ "…ids of removed entries…" ]
 }
@@ -61,20 +68,36 @@ has the same shape.
   history for that exercise. Recompute PRs yourself rather than trusting it
   if entries were edited or imported.
 - `rests` (optional) is seconds of rest recorded before each set.
-- `dist` is null when not logged. Unit is whatever Liam typed (miles unless
-  said otherwise).
+- `mode` says how a strength entry is loaded: `"weighted"`, `"bw"`
+  (bodyweight: `w` is added weight, usually 0) or `"assist"` (assisted
+  machine: `w` is negative, the weight on the assist stack). Entries logged
+  before this field existed have no `mode`; read them as assisted when the
+  name contains "assist" (treat a positive `w` there as the assist amount),
+  as bodyweight when every set has `w` of 1 or less (the old workaround for a
+  weight box that would not take 0), and as weighted otherwise.
+- `bodyweight` (top level, optional) is Liam's bodyweight in `unit`. The
+  effective load for a bodyweight or assisted set is `bodyweight + w`; use it
+  for e1RM and volume on those entries. Without it, track those exercises by
+  reps and say so.
+- `min` is decimal minutes (25.5 is 25:30); show times as m:ss.
+- `dist` is null when not logged. `du` is its unit: `mi`, `km`, `m`, `steps`
+  or `floors`. When `du` is missing the app unit applies (miles for lb, km for
+  kg), except stair climber entries with a large distance, which were steps.
 - Ignore `deleted`; it is a tombstone list for sync merging.
 
 ## Analysis conventions
 
 Match the app so numbers agree with what Liam sees on his phone:
 
-- Estimated 1RM uses Epley: `w * (1 + r / 30)`. Best set of a session is the
-  set with the highest e1RM.
-- Session volume is `sum(w * r)` over sets.
+- Estimated 1RM uses Epley: `w * (1 + r / 30)` with the effective load above.
+  Best set of a session is the set with the highest e1RM (or the most reps
+  when tracking by reps).
+- Session volume is `sum(load * r)` over sets, load clamped at 0.
 - Progressive overload target: if last session's top set was under ~8 reps,
   target the same weight for more reps; at 8 or more reps, add weight (5 lb
-  upper body, 10 lb lower body / machines) and drop back to ~6 reps.
+  upper body, 10 lb lower body / machines) and drop back to ~6 reps. On
+  assisted work "add weight" means taking 5 lb off the assist stack; on plain
+  bodyweight work keep adding reps until ~12, then add weight.
 - Week boundaries are Monday to Sunday. "Days this week" counts distinct
   dates with any entry.
 - Exercise names are free text. Normalize case and trailing whitespace before

@@ -126,6 +126,11 @@
     font-weight: 600; font-size: 14px; padding: 9px 0; border-radius: 8px; cursor: pointer;
   }
   .seg button.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .seg.mini { margin: 8px 0 0; padding: 2px; }
+  .seg.mini button { font-size: 12px; padding: 7px 0; }
+  .bw-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .bw-row label { flex: 1; font-size: 12px; font-weight: 600; color: var(--ink-2); line-height: 1.35; }
+  .bw-row input { flex: 0 0 96px; }
 
   /* ---- forms ---- */
   label.f { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 8px 0 4px; }
@@ -166,6 +171,11 @@
     cursor: pointer; font-family: inherit; font-variant-numeric: tabular-nums;
   }
   .rest-btn.running { background: var(--series); color: #fff; border-color: var(--series); }
+  .rest-snd {
+    flex: 0 0 auto; border: 1px solid var(--border); background: var(--page);
+    border-radius: 10px; padding: 9px 12px; font-size: 16px; cursor: pointer; font-family: inherit;
+  }
+  .rest-snd.off { opacity: .5; }
   .restbar-fix {
     position: fixed; left: 50%; transform: translateX(-50%);
     bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 10px);
@@ -263,6 +273,19 @@
   }
   .hint b { color: var(--ink); }
   .hint .target { color: var(--good); font-weight: 700; }
+  .hint .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .hint .acts button {
+    border: 1px solid var(--border); background: var(--surface); color: var(--series);
+    border-radius: 999px; padding: 6px 11px; font-size: 12px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  .set-row input::placeholder { color: var(--muted); opacity: .7; }
+  .time-row { display: flex; align-items: center; gap: 4px; }
+  .time-row input { min-width: 0; }
+  .time-row .colon { font-weight: 700; color: var(--muted); }
+  .dist-row { display: flex; gap: 6px; }
+  .dist-row input { flex: 1; min-width: 0; }
+  .dist-row select { flex: 0 0 92px; padding-left: 8px; padding-right: 8px; }
 
   /* ---- history ---- */
   .day-h { font-size: 13px; font-weight: 700; color: var(--ink-2); margin: 16px 2px 8px; }
@@ -338,10 +361,19 @@
       <label class="f" for="exName">Exercise</label>
       <input id="exName" list="exList" placeholder="e.g. Bench Press" autocomplete="off">
       <datalist id="exList"></datalist>
+      <div class="seg mini" id="modeSeg" aria-label="How this exercise is loaded">
+        <button type="button" data-mode="" class="active">Weighted</button>
+        <button type="button" data-mode="bw">Bodyweight</button>
+        <button type="button" data-mode="assist">Assisted</button>
+      </div>
+      <div class="bw-row" id="bwRow" style="display:none">
+        <label for="bodyweight">Your bodyweight (<span class="bwUnit">lb</span>), for est. 1RM and volume</label>
+        <input type="number" id="bodyweight" inputmode="decimal" placeholder="optional">
+      </div>
       <div id="lastHint"></div>
 
       <div class="label-row">
-        <label class="f">Sets — tap ✓ as you finish each</label>
+        <label class="f" id="setsLabel">Sets — weight × reps, ✓ when done</label>
         <button type="button" class="linkbtn" id="addSet">+ Add set</button>
       </div>
       <div id="setRows"></div>
@@ -354,6 +386,7 @@
       <div class="rest-row">
         <button type="button" class="rest-dur" id="restDur" title="Tap to change rest length">1:00</button>
         <button type="button" class="rest-btn" id="restBtn">Start rest timer</button>
+        <button type="button" class="rest-snd" id="restSnd" title="Alarm sound on/off (tap to test)" aria-label="Alarm sound on or off">🔔</button>
       </div>
       <div class="row footer-row">
         <div class="datecell">
@@ -369,15 +402,23 @@
       <input id="cName" list="cList" placeholder="e.g. Run" autocomplete="off">
       <datalist id="cList"></datalist>
       <div class="chips" id="cardioChips"></div>
+      <div id="cLastHint"></div>
 
       <div class="row">
         <div>
-          <label class="f" for="cMin">Minutes</label>
-          <input type="number" id="cMin" inputmode="decimal" placeholder="30">
+          <label class="f" for="cMin">Time (min : sec)</label>
+          <div class="time-row">
+            <input type="number" id="cMin" inputmode="numeric" placeholder="30" min="0" aria-label="Minutes">
+            <span class="colon">:</span>
+            <input type="number" id="cSec" inputmode="numeric" placeholder="00" min="0" max="59" aria-label="Seconds">
+          </div>
         </div>
         <div>
-          <label class="f" for="cDist">Distance <span id="distUnit"></span> (optional)</label>
-          <input type="number" id="cDist" inputmode="decimal" placeholder="3.1">
+          <label class="f" for="cDist">Distance (optional)</label>
+          <div class="dist-row">
+            <input type="number" id="cDist" inputmode="decimal" placeholder="3.1">
+            <select id="cDistUnit" aria-label="Distance unit"></select>
+          </div>
         </div>
       </div>
 
@@ -479,12 +520,15 @@
         const d = JSON.parse(raw);
         if (d && Array.isArray(d.entries)) {
           if (!Array.isArray(d.deleted)) d.deleted = [];
+          d.bodyweight = posNum(d.bodyweight);
           return d;
         }
       }
     } catch (e) {}
-    return { unit: 'lb', entries: [], deleted: [] };
+    return { unit: 'lb', entries: [], deleted: [], bodyweight: null };
   }
+  // a positive finite number, else null (bodyweight is optional)
+  function posNum(v) { const n = parseFloat(v); return isFinite(n) && n > 0 ? n : null; }
   function save() { localStorage.setItem(KEY, JSON.stringify(db)); scheduleSync(); }
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -512,14 +556,84 @@
     db.entries.filter(e => e.type === 'strength' && (!name || e.name.toLowerCase() === name.toLowerCase()))
       .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 
+  /* ---- load modes ----
+     Each strength entry is 'weighted' (default), 'bw' (bodyweight; w = added
+     weight, usually 0) or 'assist' (assisted machine; w is stored NEGATIVE,
+     the stack weight taking load off). Older entries have no mode: names
+     containing "assist" are read as assisted, and entries logged with the
+     old "1 lb" workaround for bodyweight moves are read as bodyweight. */
+  const MODE_NAMES = { '': 'weighted', bw: 'bodyweight', assist: 'assisted' };
+  const ASSIST_RE = /assist/i;
+  const BW_RE = /pull[- ]?ups?|chin[- ]?ups?|\bdips?\b|push[- ]?ups?|leg raise|knee raise|sit[- ]?ups?|plank|hanging|bodyweight|\bbw\b|burpee|inverted row/i;
+  function entryMode(e) {
+    if (e.mode === 'bw' || e.mode === 'assist') return e.mode;
+    if (e.mode === undefined) {   // logged before modes existed
+      if (ASSIST_RE.test(e.name)) return 'assist';
+      if (e.sets && e.sets.length && e.sets.every(s => s.w <= 1)) return 'bw';
+    }
+    return '';
+  }
+  // guess for an exercise with no history yet
+  const guessMode = (name) => ASSIST_RE.test(name) ? 'assist' : BW_RE.test(name) ? 'bw' : '';
+  // canonical stored weight: added weight (bw), negative assist (assist), or the load
+  function canonW(e, s) {
+    const m = entryMode(e);
+    if (m === 'bw') return e.mode === 'bw' ? Math.max(0, s.w) : 0;      // legacy "1 lb" rows mean plain bodyweight
+    if (m === 'assist') return e.mode === 'assist' || s.w > 1 ? -Math.abs(s.w) : 0;
+    return s.w;
+  }
+  // effective load the muscles move: needs bodyweight for bw / assisted work
+  function loadOf(e, s) {
+    const m = entryMode(e);
+    if (!m) return s.w;
+    return (db.bodyweight || 0) + canonW(e, s);
+  }
+  // what the trend for this entry is measured in: est. 1RM, or plain reps when
+  // it's a bodyweight move and we don't know the bodyweight
+  const metricKind = (e) => entryMode(e) && !db.bodyweight ? 'reps' : 'e1rm';
+  function setScore(e, s) {
+    if (metricKind(e) === 'reps') return s.r + canonW(e, s) / 1000; // ties: more added / less assist wins
+    return e1rm(loadOf(e, s), s.r);
+  }
   function bestSet(entry) {
     let best = null;
     for (const s of entry.sets) {
-      if (!best || e1rm(s.w, s.r) > e1rm(best.w, best.r)) best = s;
+      if (!best || setScore(entry, s) > setScore(entry, best)) best = s;
     }
     return best;
   }
-  const volume = (entry) => entry.sets.reduce((t, s) => t + s.w * s.r, 0);
+  const volume = (entry) => entry.sets.reduce((t, s) => t + Math.max(0, loadOf(entry, s)) * s.r, 0);
+
+  // "120×8", "BW×12", "BW+10×8", "−60×8"
+  function fmtSet(e, s) {
+    const m = entryMode(e), w = canonW(e, s);
+    if (m === 'bw') return (w > 0 ? 'BW+' + w : 'BW') + '×' + s.r;
+    if (m === 'assist') return '−' + Math.abs(w) + '×' + s.r;
+    return w + '×' + s.r;
+  }
+  function fmtSets(e) {
+    const m = entryMode(e);
+    const txt = e.sets.map(s => fmtSet(e, s)).join(', ');
+    if (m === 'bw') return txt + (e.sets.some(s => canonW(e, s) > 0) ? ' ' + db.unit : '');
+    if (m === 'assist') return txt + ' ' + db.unit + ' assist';
+    return txt + ' ' + db.unit;
+  }
+
+  /* ---- cardio: time as m:ss, distance in the unit that fits the machine ---- */
+  const DIST_UNITS = { mi: 'mi', km: 'km', m: 'm', steps: 'steps', floors: 'floors' };
+  const defaultDistUnit = () => db.unit === 'kg' ? 'km' : 'mi';
+  function distUnitOf(e) {
+    if (e.du && DIST_UNITS[e.du]) return e.du;
+    // older stair climber entries were logged as "miles" but meant steps
+    if (e.du === undefined && /stair/i.test(e.name) && e.dist >= 50) return 'steps';
+    return defaultDistUnit();
+  }
+  const guessDistUnit = (name) => /stair/i.test(name) ? 'steps' : /row/i.test(name) ? 'm' : defaultDistUnit();
+  function fmtMin(min) {
+    const total = Math.round(min * 60);
+    return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
+  }
+  const fmtDist = (e) => e.dist ? Number(e.dist).toLocaleString() + ' ' + DIST_UNITS[distUnitOf(e)] : '';
 
   /* ================= toast ================= */
   let toastTimer;
@@ -554,7 +668,7 @@
   const wStep = () => db.unit === 'kg' ? 1.25 : 2.5;
   function renderUnit() {
     $('#unitToggle').textContent = db.unit === 'kg' ? 'kg' : 'lb';
-    $('#distUnit').textContent = db.unit === 'kg' ? '(km)' : '(mi)';
+    document.querySelectorAll('.bwUnit').forEach(el => el.textContent = db.unit);
     document.querySelectorAll('#stepper button[data-k="w"]').forEach(b =>
       b.textContent = (b.dataset.d === '1' ? '+ ' : '− ') + wStep() + ' ' + db.unit);
   }
@@ -572,18 +686,29 @@
   });
 
   /* ================= log: strength form ================= */
-  function setRow(w, r) {
+  let formMode = '';          // '' weighted, 'bw', 'assist' — for the exercise being logged
+  const wPlaceholder = () => formMode === 'bw' ? '+ added' : formMode === 'assist' ? 'assist' : 'weight';
+
+  // a row's inputs are valid for the current mode: weight must be > 0, except
+  // bodyweight moves where the added weight may be blank or 0
+  function rowValues(row) {
+    const wv = row.querySelector('.w').value.trim();
+    const w = num(wv), r = num(row.querySelector('.r').value);
+    const wOk = formMode === 'bw' ? (wv === '' || w >= 0) : w > 0;
+    return { w: formMode === 'bw' && wv === '' ? 0 : w, r, ok: wOk && r > 0 };
+  }
+  function setRow(w, r, ph) {
+    ph = ph || {};
     const div = document.createElement('div');
     div.className = 'set-row';
     div.innerHTML =
       '<span class="set-n"></span>' +
-      '<input type="number" inputmode="decimal" class="w" placeholder="weight" value="' + (w ?? '') + '">' +
-      '<input type="number" inputmode="numeric" class="r" placeholder="reps" value="' + (r ?? '') + '">' +
+      '<input type="number" inputmode="decimal" class="w" placeholder="' + esc(ph.w || wPlaceholder()) + '" value="' + (w ?? '') + '">' +
+      '<input type="number" inputmode="numeric" class="r" placeholder="' + esc(ph.r || 'reps') + '" value="' + (r ?? '') + '">' +
       '<button class="ck" aria-label="Log this set">✓</button>';
     div.querySelector('.ck').addEventListener('click', () => {
-      if (!div.classList.contains('done') &&
-          (num(div.querySelector('.w').value) <= 0 || num(div.querySelector('.r').value) <= 0)) {
-        toast('Enter weight and reps first'); return;
+      if (!div.classList.contains('done') && !rowValues(div).ok) {
+        toast(formMode === 'bw' ? 'Enter reps first' : 'Enter ' + wPlaceholder() + ' and reps first'); return;
       }
       div.classList.toggle('done');
       if (div.classList.contains('done')) startRest();
@@ -595,28 +720,57 @@
   function renumber() {
     document.querySelectorAll('#setRows .set-n').forEach((el, i) => el.textContent = i + 1);
   }
-  function resetSetRows(sets) {
+  // blank rows (or the given values), with last session's sets as placeholders
+  function resetSetRows(sets, last) {
     const box = $('#setRows');
     box.innerHTML = '';
-    (sets && sets.length ? sets : [{}, {}, {}]).forEach(s => box.appendChild(setRow(s.w, s.r)));
+    const phs = placeholdersFor(last);
+    const n = Math.max(sets ? sets.length : 0, phs.length, 3);
+    for (let i = 0; i < n; i++) {
+      const s = (sets && sets[i]) || {};
+      box.appendChild(setRow(s.w, s.r, phs[i]));
+    }
     renumber();
   }
+  const placeholdersFor = (last) => last ? last.sets.map(s => ({ w: phWeight(last, s), r: String(s.r) })) : [];
+  // re-label existing rows for the current exercise and mode without touching values
+  function applyPlaceholders(last) {
+    const phs = placeholdersFor(last);
+    document.querySelectorAll('#setRows .set-row').forEach((row, i) => {
+      row.querySelector('.w').placeholder = phs[i] ? phs[i].w : wPlaceholder();
+      row.querySelector('.r').placeholder = phs[i] ? phs[i].r : 'reps';
+    });
+  }
+  // placeholder text for the weight box, in the form's mode
+  function phWeight(e, s) {
+    const w = canonW(e, s);
+    if (formMode === 'bw') return w > 0 ? '+' + w : 'BW';
+    if (formMode === 'assist') return String(Math.abs(w));
+    return String(w);
+  }
+  // fill the weight boxes from an entry's sets, in the form's mode (assist shown positive)
+  const formW = (e, s) => {
+    const w = canonW(e, s);
+    if (formMode === 'bw') return w > 0 ? w : '';
+    return Math.abs(w);
+  };
   $('#addSet').addEventListener('click', () => {
     const rows = document.querySelectorAll('#setRows .set-row');
     const last = rows[rows.length - 1];
     const w = last ? last.querySelector('.w').value : '';
     const r = last ? last.querySelector('.r').value : '';
-    $('#setRows').appendChild(setRow(w, r));
+    const ph = last ? { w: last.querySelector('.w').placeholder, r: last.querySelector('.r').placeholder } : null;
+    $('#setRows').appendChild(setRow(w, r, ph));
     renumber();
   });
 
+  // sets as stored on the entry: assist is negative, bodyweight is the added weight
   function readSets(doneOnly) {
     const sets = [];
     document.querySelectorAll('#setRows .set-row').forEach(row => {
       if (doneOnly && !row.classList.contains('done')) return;
-      const w = num(row.querySelector('.w').value);
-      const r = num(row.querySelector('.r').value);
-      if (w > 0 && r > 0) sets.push({ w, r });
+      const v = rowValues(row);
+      if (v.ok) sets.push({ w: formMode === 'assist' ? -v.w : v.w, r: v.r });
     });
     return sets;
   }
@@ -630,78 +784,185 @@
     const isW = b.dataset.k === 'w';
     const input = row.querySelector(isW ? '.w' : '.r');
     const step = isW ? wStep() : 1;
-    const v = Math.max(0, rnd(num(input.value) + step * Number(b.dataset.d)));
+    // an empty box steps from last time's value (the placeholder) when there is one
+    const base = input.value.trim() === '' && /^[+]?\d/.test(input.placeholder) ? num(input.placeholder.replace('+', '')) : num(input.value);
+    const v = Math.max(0, rnd(base + step * Number(b.dataset.d)));
     input.value = isW ? v : Math.round(v);
     row.classList.remove('done');
   });
 
-  /* ---- progressive overload hint + prefilled sets ---- */
-  let lastPrefill = '';
-  // last session's sets, with the overload target applied to the top set
-  function suggestedSets(last) {
-    const sets = last.sets.map(x => ({ w: x.w, r: x.r }));
-    const bs = bestSet(last);
-    const i = last.sets.findIndex(x => x.w === bs.w && x.r === bs.r);
-    if (bs.r >= 8) sets[i] = { w: rnd(bs.w + inc()), r: Math.max(5, bs.r - 2) };
-    else sets[i] = { w: bs.w, r: bs.r + 1 };
-    return sets;
+  /* ---- load mode toggle + bodyweight ---- */
+  function renderMode() {
+    document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('active', b.dataset.mode === formMode));
+    $('#bwRow').style.display = formMode ? '' : 'none';
+    if (document.activeElement !== $('#bodyweight')) $('#bodyweight').value = db.bodyweight || '';
+    $('#setsLabel').textContent = formMode === 'bw' ? 'Sets — reps, ✓ when done'
+      : formMode === 'assist' ? 'Sets — assist × reps, ✓ when done'
+      : 'Sets — weight × reps, ✓ when done';
+    applyPlaceholders(hintLast);
+  }
+  $('#modeSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    formMode = b.dataset.mode;
+    renderHint();
+  });
+  $('#bodyweight').addEventListener('change', () => {
+    db.bodyweight = posNum($('#bodyweight').value);
+    save(); renderHint();
+    if (db.bodyweight) toast('Bodyweight saved — used for progress math');
+  });
+
+  /* ---- last time + progressive overload target (shown, never prefilled) ---- */
+  let hintFor = '';    // exercise the rows/placeholders were last set up for
+  let hintLast = null; // the session the hint is showing
+  let hintHtml = '';   // what is in the box, so a no-op re-render leaves the DOM alone
+  // overload target from last session's top set: more reps until ~8+, then
+  // more load (weighted: add weight; assisted: take weight off the stack;
+  // bodyweight: keep adding reps, add weight once you're past 12)
+  function targetFor(last) {
+    const bs = bestSet(last), m = entryMode(last), w = canonW(last, bs), u = db.unit;
+    if (m === 'bw') {
+      return (w > 0 ? 'BW+' + w + ' ' + u : 'bodyweight') + ' × ' + (bs.r + 1) + ' reps' +
+        (bs.r >= 15 ? ' (or add weight and drop to ~8)' : '');
+    }
+    if (m === 'assist') {
+      const a = Math.abs(w);
+      if (bs.r >= 8) {
+        const next = rnd(a - inc());
+        return next > 0 ? next + ' ' + u + ' assist × ' + Math.max(5, bs.r - 2) + ' reps' : 'try it unassisted (Bodyweight)';
+      }
+      return a + ' ' + u + ' assist × ' + (bs.r + 1) + ' reps';
+    }
+    if (bs.r >= 8) return rnd(w + inc()) + ' ' + u + ' × ' + Math.max(5, bs.r - 2) + ' reps';
+    return w + ' ' + u + ' × ' + (bs.r + 1) + ' reps';
   }
   function renderHint() {
     const name = $('#exName').value.trim();
     const box = $('#lastHint');
-    if (!name) { box.innerHTML = ''; return; }
-    const hist = strengthEntries(name);
-    if (!hist.length) {
-      box.innerHTML = '';
-      if (lastPrefill) { lastPrefill = ''; if (!readSets(true).length) resetSetRows(); }
-      return;
+    const key = name.toLowerCase();
+    const hist = name ? strengthEntries(name) : [];
+    const last = hist.length ? hist[hist.length - 1] : null;
+    hintLast = last;
+    if (key !== hintFor) {
+      // new exercise: pick its mode (history, else a guess from the name) and
+      // lay out blank rows with last time's sets as placeholders, keeping
+      // anything already typed or confirmed
+      hintFor = key;
+      formMode = last ? entryMode(last) : guessMode(name);
+      const typed = [...document.querySelectorAll('#setRows .set-row')].some(r =>
+        r.classList.contains('done') || r.querySelector('.w').value !== '' || r.querySelector('.r').value !== '');
+      if (!typed) resetSetRows(null, last);
     }
-    const last = hist[hist.length - 1];
-    const bs = bestSet(last);
-    const setsTxt = last.sets.map(x => x.w + '×' + x.r).join(', ');
-    // overload suggestion: more reps at same weight until ~8+, then add weight
-    let target;
-    if (bs.r >= 8) target = rnd(bs.w + inc()) + ' ' + db.unit + ' × ' + Math.max(5, bs.r - 2) + ' reps';
-    else target = bs.w + ' ' + db.unit + ' × ' + (bs.r + 1) + ' reps';
-    box.innerHTML =
-      '<div class="hint">Last time (' + fmtDate(last.date) + '): <b>' + setsTxt + ' ' + db.unit + '</b><br>' +
-      'Sets below are prefilled with <span class="target">' + target + '</span> as the target — tap ✓ as you go.</div>';
-    // prefill once per exercise, never over confirmed sets
-    if (lastPrefill !== name.toLowerCase() && !readSets(true).length) {
-      resetSetRows(suggestedSets(last));
-      lastPrefill = name.toLowerCase();
+    renderMode();
+    let html = '';
+    if (!name) html = '';
+    else if (!last) {
+      html = '<div class="hint">First time logging <b>' + esc(name) + '</b>' +
+        (formMode ? ' — logging as <b>' + MODE_NAMES[formMode] + '</b>, change above if that\'s wrong.' : '.') + '</div>';
+    } else {
+      const mode = entryMode(last);
+      html = 'Last time (' + fmtDate(last.date) + '): <b>' + esc(fmtSets(last)) + '</b>' +
+        (hist.length > 1 ? ' <span style="color:var(--muted)">· ' + hist.length + ' sessions</span>' : '') + '<br>' +
+        'Target: <span class="target">' + esc(targetFor(last)) + '</span>';
+      if (formMode !== mode) html += '<br><span style="color:var(--danger)">Last time was logged as ' + MODE_NAMES[mode] + '; you have ' + MODE_NAMES[formMode] + ' selected.</span>';
+      html += '<div class="acts"><button type="button" id="fillLast">Fill in last time\'s sets</button></div>';
+      html = '<div class="hint">' + html + '</div>';
     }
+    // the exercise box fires change (and this) when it loses focus to a tap on
+    // the fill button; rebuilding identical DOM would swallow that tap
+    if (html !== hintHtml) { box.innerHTML = html; hintHtml = html; }
   }
+  // delegated: the hint re-renders when the exercise box loses focus, which
+  // would swap the button out from under a direct click handler
+  $('#lastHint').addEventListener('click', (e) => {
+    const last = hintLast;
+    if (!e.target.closest('#fillLast') || !last) return;
+    if (readSets(true).length && !confirm('Replace the sets you have already ticked?')) return;
+    resetSetRows(last.sets.map(s => ({ w: formW(last, s), r: s.r })), last);
+    toast('Filled from ' + fmtDate(last.date) + ' — edit, then tap ✓');
+  });
   $('#exName').addEventListener('input', renderHint);
   $('#exName').addEventListener('change', renderHint);
 
   /* ---- rest timer (logged quietly on the entry as `rests`) ---- */
   const REST_PRESETS = [30, 60, 90, 120, 180];
+  const SND_KEY = 'workout-log-rest-sound';
   let restSec = 60, restEndAt = null, restTick = null;
   let pendingRests = [];
+  let soundOn = localStorage.getItem(SND_KEY) !== 'off';
   const fmtSecs = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 
-  function beep() {
+  // Phones only let a page make noise after a tap, so the audio context is
+  // created and unlocked on the tap that starts the timer, then reused for
+  // the alarm. Where the Audio Session API exists (Safari 17+) the alarm is
+  // declared a "transient" sound: it plays over music and ducks it, rather
+  // than pausing it the way the exclusive "playback" type would.
+  let audio = null;
+  function unlockAudio() {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      [0, 0.25].forEach(t => {
-        const o = ctx.createOscillator(), g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.frequency.value = 880; g.gain.value = 0.15;
-        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.15);
-      });
+      if (navigator.audioSession) navigator.audioSession.type = 'transient';
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume().catch(() => {});
+      const b = audio.createBufferSource();
+      b.buffer = audio.createBuffer(1, 1, 22050);
+      b.connect(audio.destination); b.start(0);
     } catch (e) {}
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  }
+  function tone(ctx, at, freq, dur, vol) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'square'; o.frequency.value = freq;
+    o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(vol, at + 0.02);
+    g.gain.setValueAtTime(vol, at + dur - 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    o.start(at); o.stop(at + dur);
+  }
+  // three rising two-note chirps over ~1.8 s: hard to miss, easy to tell from a phone notification
+  function alarm() {
+    if (soundOn) {
+      try {
+        unlockAudio();
+        const t0 = audio.currentTime + 0.05;
+        for (let i = 0; i < 3; i++) {
+          tone(audio, t0 + i * 0.6, 880, 0.18, 0.5);
+          tone(audio, t0 + i * 0.6 + 0.2, 1320, 0.28, 0.5);
+        }
+      } catch (e) {}
+    }
+    if (navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 500]);
+  }
+  function renderSound() {
+    const b = $('#restSnd');
+    b.textContent = soundOn ? '🔔' : '🔕';
+    b.classList.toggle('off', !soundOn);
+  }
+  $('#restSnd').addEventListener('click', () => {
+    soundOn = !soundOn;
+    localStorage.setItem(SND_KEY, soundOn ? 'on' : 'off');
+    renderSound();
+    if (soundOn) { alarm(); toast('Alarm on — that\'s the sound'); } else toast('Alarm sound off');
+  });
+
+  // keep the screen on while resting so the countdown keeps running and the
+  // alarm can fire (a locked phone freezes the page)
+  let wakeLock = null;
+  async function holdScreen() {
+    try { if (navigator.wakeLock && !wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+  }
+  function releaseScreen() {
+    if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   }
 
   function stopRest(finished) {
     clearInterval(restTick);
     restTick = null; restEndAt = null;
+    releaseScreen();
     const btn = $('#restBtn');
     btn.classList.remove('running');
     btn.textContent = 'Start rest timer';
     $('#restBarFix').style.display = 'none';
-    if (finished) { beep(); toast('Rest over — next set!'); }
+    if (finished) { alarm(); toast('Rest over — next set!'); }
   }
 
   function tickRest() {
@@ -713,6 +974,8 @@
 
   function startRest() {
     if (restTick) return;
+    unlockAudio();
+    holdScreen();
     pendingRests.push({ afterSet: readSets(true).length || readSets().length, sec: restSec, at: Date.now() });
     restEndAt = Date.now() + restSec * 1000;
     $('#restBtn').classList.add('running');
@@ -721,6 +984,11 @@
     tickRest();
   }
   $('#restBarFix').addEventListener('click', () => stopRest(false));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (audio && audio.state === 'suspended') audio.resume().catch(() => {});
+    if (restTick) { holdScreen(); tickRest(); }  // wake lock is dropped when the app is hidden
+  });
 
   $('#restDur').addEventListener('click', () => {
     if (restTick) return; // not while running
@@ -740,40 +1008,74 @@
     const sets = confirmed.length ? confirmed : readSets();
     const date = $('#exDate').value || todayISO();
     if (!name) { toast('Enter an exercise name'); return; }
-    if (!sets.length) { toast('Add at least one set (weight and reps)'); return; }
+    if (!sets.length) { toast(formMode === 'bw' ? 'Add at least one set (reps)' : 'Add at least one set (' + wPlaceholder() + ' and reps)'); return; }
 
-    // PR check against all prior history for this exercise
+    const entry = { id: uid(), type: 'strength', date, name, sets, pr: false, mode: formMode || 'weighted' };
+    // PR check against all prior history for this exercise, on the same
+    // measure the trends use (est. 1RM, or reps for bodyweight work)
     const prior = strengthEntries(name);
-    const prevBest = prior.reduce((m, e) => Math.max(m, e1rm(bestSet(e).w, bestSet(e).r)), 0);
-    const nowBest = sets.reduce((m, s) => Math.max(m, e1rm(s.w, s.r)), 0);
-    const isPR = prior.length > 0 && nowBest > prevBest;
-
-    const entry = { id: uid(), type: 'strength', date, name, sets, pr: isPR };
+    const prevBest = prior.reduce((m, e) => Math.max(m, setScore(e, bestSet(e))), -Infinity);
+    const nowBest = sets.reduce((m, s) => Math.max(m, setScore(entry, s)), -Infinity);
+    entry.pr = prior.length > 0 && nowBest > prevBest;
     if (pendingRests.length) { entry.rests = pendingRests; pendingRests = []; }
     if (restTick) stopRest(false);
     db.entries.push(entry);
     save();
-    toast(isPR ? '🎉 Saved — new PR on ' + name + '!' : 'Workout saved');
-    resetSetRows();
+    toast(entry.pr ? '🎉 Saved — new PR on ' + name + '!' : 'Workout saved');
     $('#exName').value = '';
-    lastPrefill = '';
+    hintFor = null;      // force a fresh layout even if the same exercise is typed again
+    resetSetRows();
     renderHint();
     refreshDatalists();
     renderRoutineChips();
   });
 
   /* ================= log: cardio form ================= */
+  const cardioEntries = (name) =>
+    db.entries.filter(e => e.type === 'cardio' && e.name.toLowerCase() === name.toLowerCase())
+      .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  let cHintFor = '';
+  // last time for this activity, and the distance unit it was logged in
+  function renderCardioHint() {
+    const name = $('#cName').value.trim();
+    const box = $('#cLastHint');
+    const key = name.toLowerCase();
+    const hist = name ? cardioEntries(name) : [];
+    const last = hist.length ? hist[hist.length - 1] : null;
+    if (key !== cHintFor) {
+      cHintFor = key;
+      $('#cDistUnit').value = last ? distUnitOf(last) : guessDistUnit(name);
+    }
+    if (!last) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="hint">Last time (' + fmtDate(last.date) + '): <b>' + fmtMin(last.min) +
+      (last.dist ? ' · ' + esc(fmtDist(last)) : '') + '</b>' +
+      (hist.length > 1 ? ' <span style="color:var(--muted)">· ' + hist.length + ' sessions</span>' : '') + '</div>';
+  }
+  $('#cName').addEventListener('input', renderCardioHint);
+  $('#cName').addEventListener('change', renderCardioHint);
+  $('#cSec').addEventListener('change', () => {
+    // 90 seconds becomes 1:30
+    const s = Math.max(0, Math.round(num($('#cSec').value)));
+    if (s >= 60) { $('#cMin').value = Math.floor(num($('#cMin').value)) + Math.floor(s / 60); $('#cSec').value = s % 60; }
+  });
+
   $('#saveCardio').addEventListener('click', () => {
     const name = $('#cName').value.trim();
-    const min = num($('#cMin').value);
+    const mins = num($('#cMin').value), secs = num($('#cSec').value);
+    const min = Math.round((mins + secs / 60) * 100) / 100;
     const dist = num($('#cDist').value);
+    const du = $('#cDistUnit').value || defaultDistUnit();
     const date = $('#cDate').value || todayISO();
     if (!name) { toast('Enter an activity'); return; }
-    if (min <= 0) { toast('Enter minutes'); return; }
-    db.entries.push({ id: uid(), type: 'cardio', date, name, min, dist: dist > 0 ? dist : null });
+    if (min <= 0) { toast('Enter the time'); return; }
+    const entry = { id: uid(), type: 'cardio', date, name, min, dist: dist > 0 ? dist : null };
+    if (entry.dist) entry.du = du;
+    db.entries.push(entry);
     save();
     toast('Cardio saved');
-    $('#cName').value = ''; $('#cMin').value = ''; $('#cDist').value = '';
+    $('#cName').value = ''; $('#cMin').value = ''; $('#cSec').value = ''; $('#cDist').value = '';
+    cHintFor = null;
+    renderCardioHint();
     refreshDatalists();
   });
 
@@ -842,8 +1144,10 @@
   function renderCardioChips() {
     $('#cardioChips').innerHTML = PRESET_CARDIO.map(n => '<button type="button" class="chip">' + esc(n) + '</button>').join('');
     [...document.querySelectorAll('#cardioChips .chip')].forEach((chip, i) => {
-      chip.addEventListener('click', () => { $('#cName').value = PRESET_CARDIO[i]; });
+      chip.addEventListener('click', () => { $('#cName').value = PRESET_CARDIO[i]; renderCardioHint(); });
     });
+    $('#cDistUnit').innerHTML = Object.keys(DIST_UNITS).map(k => '<option value="' + k + '">' + DIST_UNITS[k] + '</option>').join('');
+    $('#cDistUnit').value = defaultDistUnit();
   }
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
@@ -863,10 +1167,10 @@
       for (const e of byDate[d]) {
         let sub;
         if (e.type === 'strength') {
-          sub = e.sets.map(s => s.w + '×' + s.r).join(', ') + ' ' + db.unit +
-                ' · vol ' + Math.round(volume(e)).toLocaleString();
+          const vol = Math.round(volume(e));
+          sub = fmtSets(e) + (vol > 0 ? ' · vol ' + vol.toLocaleString() : '');
         } else {
-          sub = e.min + ' min' + (e.dist ? ' · ' + e.dist + ' ' + (db.unit === 'kg' ? 'km' : 'mi') : '');
+          sub = fmtMin(e.min) + (e.dist ? ' · ' + fmtDist(e) : '');
         }
         html += '<div class="card entry" data-id="' + e.id + '">' +
           '<div><span class="name">' + esc(e.name) + '</span>' +
@@ -908,7 +1212,7 @@
         const d = JSON.parse(reader.result);
         if (!d || !Array.isArray(d.entries)) throw new Error('bad file');
         if (!confirm('Import ' + d.entries.length + ' entries? This replaces current data.')) return;
-        db = { unit: d.unit === 'kg' ? 'kg' : 'lb', entries: d.entries, deleted: Array.isArray(d.deleted) ? d.deleted : [] };
+        db = { unit: d.unit === 'kg' ? 'kg' : 'lb', entries: d.entries, deleted: Array.isArray(d.deleted) ? d.deleted : [], bodyweight: posNum(d.bodyweight) };
         save(); renderUnit(); renderHistory(); refreshDatalists();
         toast('Imported ' + d.entries.length + ' entries');
       } catch (e) { toast('Could not read that file'); }
@@ -967,9 +1271,13 @@
   function exerciseSeries(name) {
     return strengthEntries(name).map(e => {
       const bs = bestSet(e);
-      return { date: e.date, value: rnd(e1rm(bs.w, bs.r)), label: bs.w + '×' + bs.r, vol: Math.round(volume(e)) };
+      return { date: e.date, value: rnd(setScore(e, bs)), label: fmtSet(e, bs), vol: Math.round(volume(e)), kind: metricKind(e) };
     });
   }
+  // how an exercise's trend is measured: by its latest session
+  const seriesKind = (pts) => pts[pts.length - 1].kind;
+  const kindUnit = (kind) => kind === 'reps' ? 'reps' : db.unit;
+  const kindName = (kind) => kind === 'reps' ? 'best reps' : 'est. 1RM';
 
   function sparkSVG(pts) {
     const w = 72, h = 26, pad = 4;
@@ -1028,7 +1336,7 @@
       const cur = pts[pts.length - 1].value;
       const delta = rnd(cur - pts[0].value);
       const prWeek = strengthEntries(n).some(e => e.pr && parseISO(e.date) >= ws);
-      let sub = cur + ' ' + db.unit;
+      let sub = cur + ' ' + kindUnit(seriesKind(pts));
       if (prWeek) sub += ' · PR this week';
       else if (isFlat(pts)) sub += ' · flat 4 sessions';
       return '<button type="button" class="exrow' + (selectedEx === n ? ' sel' : '') + '" data-ex="' + esc(n) + '">' +
@@ -1055,16 +1363,18 @@
     card.style.display = '';
     $('#exDetailTitle').textContent = selectedEx;
     const pts = exerciseSeries(selectedEx);
-    lineChart($('#strengthChart'), pts, 'est. 1RM');
+    const kind = seriesKind(pts), ku = kindUnit(kind);
+    lineChart($('#strengthChart'), pts, kindName(kind), ku);
     const first = pts[0], lastP = pts[pts.length - 1];
     const best = pts.reduce((m, p) => p.value > m.value ? p : m, pts[0]);
     const delta = rnd(lastP.value - first.value);
+    const bwNote = kind === 'reps' ? '<div class="sync-note">Bodyweight exercise — set your bodyweight on the Log tab to track this as est. 1RM and volume instead of reps.</div>' : '';
     $('#strengthStats').innerHTML =
       '<div class="kv"><span class="k">Sessions logged</span><span class="v">' + pts.length + '</span></div>' +
-      '<div class="kv"><span class="k">Best est. 1RM</span><span class="v">' + best.value + ' ' + db.unit + ' <span style="color:var(--muted);font-weight:400">(' + fmtShort(best.date) + ')</span></span></div>' +
+      '<div class="kv"><span class="k">Best ' + kindName(kind) + '</span><span class="v">' + best.value + ' ' + ku + ' <span style="color:var(--muted);font-weight:400">(' + fmtShort(best.date) + ')</span></span></div>' +
       '<div class="kv"><span class="k">Latest top set</span><span class="v">' + lastP.label + ' ' + db.unit + '</span></div>' +
-      '<div class="kv"><span class="k">Latest session volume</span><span class="v">' + lastP.vol.toLocaleString() + ' ' + db.unit + '</span></div>' +
-      '<div class="kv"><span class="k">Change since first session</span><span class="v" style="color:' + (delta >= 0 ? 'var(--good)' : 'var(--danger)') + '">' + (delta >= 0 ? '+' : '') + delta + ' ' + db.unit + '</span></div>';
+      (lastP.vol > 0 ? '<div class="kv"><span class="k">Latest session volume</span><span class="v">' + lastP.vol.toLocaleString() + ' ' + db.unit + '</span></div>' : '') +
+      '<div class="kv"><span class="k">Change since first session</span><span class="v" style="color:' + (delta >= 0 ? 'var(--good)' : 'var(--danger)') + '">' + (delta >= 0 ? '+' : '') + delta + ' ' + ku + '</span></div>' + bwNote;
   }
 
   function renderFreqHeat() {
@@ -1134,11 +1444,12 @@
     return 10 * p;
   }
 
-  function lineChart(wrap, pts, unitLabel) {
+  function lineChart(wrap, pts, unitLabel, valueUnit) {
+    valueUnit = valueUnit || db.unit;
     wrap.innerHTML = '';
     if (pts.length === 1) {
       wrap.innerHTML = '<div class="empty">One session logged (' + pts[0].label + ' ' + db.unit +
-        ', est. 1RM ' + pts[0].value + ').<br>Log a second one to see a trend line.</div>';
+        ', ' + unitLabel + ' ' + pts[0].value + ').<br>Log a second one to see a trend line.</div>';
       return;
     }
     const W = 520, H = 220, padL = 40, padR = 14, padT = 14, padB = 26;
@@ -1178,7 +1489,7 @@
     wrap.appendChild(svg);
     attachTooltip(wrap, svg, pts.map((p, i) => ({
       px: x(i) / W, py: y(p.value) / H,
-      html: fmtShort(p.date) + ' · <b>' + p.value + ' ' + db.unit + '</b> ' + unitLabel + '<br>top set ' + p.label + ' · vol ' + p.vol.toLocaleString()
+      html: fmtShort(p.date) + ' · <b>' + p.value + ' ' + valueUnit + '</b> ' + unitLabel + '<br>top set ' + p.label + (p.vol > 0 ? ' · vol ' + p.vol.toLocaleString() : '')
     })));
   }
 
@@ -1299,7 +1610,7 @@
       }
       const merged = await res.json();
       if (merged && Array.isArray(merged.entries)) {
-        db = { unit: merged.unit === 'kg' ? 'kg' : 'lb', entries: merged.entries, deleted: Array.isArray(merged.deleted) ? merged.deleted : [] };
+        db = { unit: merged.unit === 'kg' ? 'kg' : 'lb', entries: merged.entries, deleted: Array.isArray(merged.deleted) ? merged.deleted : [], bodyweight: posNum(merged.bodyweight) };
         localStorage.setItem(KEY, JSON.stringify(db)); // save() would re-schedule
         renderUnit();
         rerenderCurrent();
@@ -1352,6 +1663,8 @@
   if (getSyncCode()) syncNow();
   renderUnit();
   resetSetRows();
+  renderMode();
+  renderSound();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   refreshDatalists();
   $('#routineSel').innerHTML = '<option value="">Pick a routine for suggestions…</option>' +
