@@ -11,22 +11,33 @@ echo it into a log.
 
 ## Fetch the data
 
-The code is expected in the `WORKOUT_SYNC_CODE` environment variable. If it is
-unset, ask Liam for it once and use it for the rest of the session without
-repeating it back.
+The API always returns the latest synced state, so there is never a need to
+ask Liam to export anything. You need his sync code (the one set on his phone
+in the app's History tab). If `WORKOUT_SYNC_CODE` is set in the environment
+use it; otherwise ask Liam for it once and use it for the rest of the session
+without repeating it back.
+
+Either form works. The URL form exists for tools that can only fetch a plain
+URL (web fetch in a chat session); use the header form when you can run
+commands.
 
 ```bash
+# header form
 curl -sS -H "Authorization: Bearer $WORKOUT_SYNC_CODE" \
   https://liams-workout-log.netlify.app/api/data > workouts.json
+
+# URL form (read-only)
+https://liams-workout-log.netlify.app/api/data?code=<sync code>
 ```
 
 A `401` means the code is missing or under six characters. An empty
 `entries` array with a valid code means the code is wrong (the server keys
 data by the SHA-256 of the code, so a typo looks like a fresh account).
 
-If the network blocks `netlify.app`, fall back to asking Liam to use
-**Export data** on the History tab of the app and share the JSON file; it has
-the same shape.
+If the network blocks `netlify.app` (some Claude Code remote environments do),
+say so plainly and ask Liam to either allow that host in the environment's
+network policy or share the JSON from **Export data** on the History tab; it
+has the same shape.
 
 ## Data shape
 

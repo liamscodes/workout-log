@@ -35,6 +35,10 @@ for years and follows you across devices.
   visible, and when the browser comes back online. If the server is
   unreachable, changes stay local and sync on the next opportunity.
 - The sync code is the only credential — treat it like a password.
+- Read-only access to the latest synced data is also available with the code
+  in the URL: `GET /api/data?code=<sync code>`. This lets tools that can only
+  fetch a plain URL (an AI assistant, a browser tab) read the data without an
+  Authorization header. Writes still require the bearer token.
 
 ## Files
 
